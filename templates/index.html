@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>How It Works Kids</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">Simple answers for curious minds</p>
+        <h1>How It Works Kids</h1>
+        <p class="subtitle">Ask anything and watch how it works!</p>
+      </section>
+
+      <section class="ask-panel" aria-labelledby="ask-heading">
+        <h2 id="ask-heading">What would you like to learn?</h2>
+        <form action="{{ url_for('animation') }}" method="post" class="question-form">
+          <label for="question">Your question</label>
+          <input
+            id="question"
+            name="question"
+            type="text"
+            placeholder="How does rain happen?"
+            autocomplete="off"
+            required
+          >
+          <button type="submit">Make a lesson</button>
+          <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
+        </form>
+      </section>
+
+      <section class="examples" aria-labelledby="examples-heading">
+        <h2 id="examples-heading">Try one of these</h2>
+        <div class="example-list">
+          {% for example in examples %}
+            <form action="{{ url_for('animation') }}" method="post" class="question-form">
+              <input type="hidden" name="question" value="{{ example }}">
+              <button class="example-button" type="submit">{{ example }}</button>
+              <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
+            </form>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const forms = document.querySelectorAll(".question-form");
+
+      forms.forEach((form) => {
+        form.addEventListener("submit", () => {
+          const message = form.querySelector(".loading-message");
+          const button = form.querySelector("button");
+
+          if (message) {
+            message.classList.add("is-visible");
+          }
+
+          if (button) {
+            button.disabled = true;
+            button.textContent = "Generating...";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

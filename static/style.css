@@ -1,0 +1,395 @@
+:root {
+  --blue: #dff4ff;
+  --blue-deep: #2f6f8f;
+  --purple: #efe7ff;
+  --purple-deep: #5d4b9a;
+  --pink: #ffe5f1;
+  --ink: #283044;
+  --paper: #fffafd;
+  --white: #ffffff;
+  --border: #dacff2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  background:
+    linear-gradient(135deg, var(--blue), var(--purple) 52%, var(--pink));
+}
+
+.page {
+  width: min(920px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.hero,
+.result-header {
+  padding: 28px 0 18px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--purple-deep);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+h1,
+h2,
+p {
+  overflow-wrap: anywhere;
+}
+
+h1 {
+  margin: 0;
+  color: var(--blue-deep);
+  font-size: 44px;
+  line-height: 1.1;
+}
+
+h2 {
+  margin: 0 0 14px;
+  color: var(--purple-deep);
+  font-size: 24px;
+}
+
+.subtitle,
+.question {
+  margin: 14px auto 0;
+  max-width: 620px;
+  font-size: 22px;
+}
+
+.ask-panel,
+.examples,
+.answer-section,
+.big-idea,
+.notice {
+  margin-top: 20px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+}
+
+form {
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 16px;
+  color: var(--ink);
+  font-size: 20px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+button,
+.back-button {
+  display: inline-block;
+  padding: 14px 20px;
+  color: var(--white);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  border: 0;
+  border-radius: 8px;
+  background: var(--purple-deep);
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+button:hover,
+.back-button:hover {
+  background: var(--blue-deep);
+}
+
+.example-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.example-button {
+  width: 100%;
+  height: 100%;
+  color: var(--ink);
+  background: var(--pink);
+  border: 2px solid var(--border);
+}
+
+.example-button:hover {
+  color: var(--white);
+}
+
+.answer-section p,
+.big-idea p,
+.notice,
+.loading-message {
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.loading-message {
+  display: none;
+  margin: 0;
+  color: var(--purple-deep);
+  font-weight: 700;
+}
+
+.loading-message.is-visible {
+  display: block;
+}
+
+.steps {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 24px;
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+.steps li {
+  padding-left: 6px;
+}
+
+.big-idea {
+  background: rgba(223, 244, 255, 0.9);
+}
+
+.notice {
+  color: #5b476b;
+  background: rgba(255, 229, 241, 0.9);
+}
+
+.prompt-text {
+  padding: 16px;
+  background: var(--paper);
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+}
+
+.sketch-card {
+  margin: 0;
+}
+
+.sketch-card img {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  object-fit: contain;
+  background: var(--paper);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+}
+
+.sketch-card figcaption {
+  margin-top: 12px;
+  color: var(--purple-deep);
+  font-size: 17px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.animation-page {
+  width: min(1040px, calc(100% - 32px));
+}
+
+.animation-stage {
+  margin-top: 20px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+}
+
+.stage-top,
+.player-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stage-top p {
+  margin: 0;
+  color: var(--purple-deep);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.ai-note {
+  color: var(--blue-deep);
+}
+
+.whiteboard-frame {
+  position: relative;
+  overflow: hidden;
+  margin-top: 18px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  aspect-ratio: 16 / 9;
+}
+
+.whiteboard-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+
+.whiteboard-frame img.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.draw-highlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(223, 244, 255, 0.2) 42%,
+    rgba(255, 229, 241, 0.36) 50%,
+    rgba(223, 244, 255, 0.2) 58%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: drawSweep 4s ease-in-out infinite;
+}
+
+.caption {
+  min-height: 72px;
+  margin: 18px 0 0;
+  padding: 16px;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  background: var(--blue);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+}
+
+.end-message {
+  display: none;
+  margin: 14px 0 0;
+  padding: 14px;
+  color: var(--purple-deep);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  background: var(--pink);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+}
+
+.end-message.is-visible {
+  display: block;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.step-dot {
+  min-height: 48px;
+  color: var(--purple-deep);
+  background: var(--pink);
+  border: 2px solid var(--border);
+}
+
+.step-dot.is-active {
+  color: var(--white);
+  background: var(--blue-deep);
+}
+
+.player-actions {
+  justify-content: center;
+}
+
+@keyframes drawSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  45%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.back-button {
+  margin-top: 22px;
+}
+
+@media (max-width: 720px) {
+  .page {
+    width: min(100% - 24px, 920px);
+    padding-top: 18px;
+  }
+
+  h1 {
+    font-size: 34px;
+  }
+
+  .subtitle,
+  .question {
+    font-size: 19px;
+  }
+
+  .example-list {
+    grid-template-columns: 1fr;
+  }
+
+  .ask-panel,
+  .examples,
+  .answer-section,
+  .big-idea,
+  .notice,
+  .animation-stage {
+    padding: 18px;
+  }
+
+  .timeline {
+    grid-template-columns: repeat(5, minmax(40px, 1fr));
+  }
+
+  .caption {
+    font-size: 20px;
+  }
+}

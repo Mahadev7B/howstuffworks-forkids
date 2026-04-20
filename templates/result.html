@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ answer.title }} - How It Works Kids</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main class="page">
+      <section class="result-header">
+        <p class="eyebrow">You asked</p>
+        <p class="question">{{ question }}</p>
+        <h1>{{ answer.title }}</h1>
+      </section>
+
+      {% if error_message %}
+        <section class="notice" role="status">
+          {{ error_message }}
+        </section>
+      {% endif %}
+
+      <section class="answer-section">
+        <h2>Simple explanation</h2>
+        <p>{{ answer.explanation }}</p>
+      </section>
+
+      <section class="answer-section">
+        <h2>Sketch diagram</h2>
+        <figure class="sketch-card">
+          <img src="{{ image.src }}" alt="Pencil sketch diagram for {{ answer.title }}">
+          {% if image.message %}
+            <figcaption>{{ image.message }}</figcaption>
+          {% else %}
+            <figcaption>A simple sketch to help explain the idea.</figcaption>
+          {% endif %}
+        </figure>
+      </section>
+
+      <section class="answer-section">
+        <h2>4 easy steps</h2>
+        <ol class="steps">
+          {% for step in answer.steps %}
+            <li>{{ step }}</li>
+          {% endfor %}
+        </ol>
+      </section>
+
+      <section class="big-idea">
+        <h2>Big idea</h2>
+        <p>{{ answer.big_idea }}</p>
+      </section>
+
+      <section class="answer-section">
+        <h2>Pencil sketch prompt</h2>
+        <p class="prompt-text">{{ answer.pencil_sketch_prompt }}</p>
+      </section>
+
+      <a class="back-button" href="{{ url_for('home') }}">Ask another question</a>
+    </main>
+  </body>
+</html>

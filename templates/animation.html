@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ lesson.title }} - How It Works Kids</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main class="page animation-page">
+      <section class="result-header">
+        <p class="eyebrow">Whiteboard lesson</p>
+        <p class="question">{{ question }}</p>
+        <h1>{{ lesson.title }}</h1>
+      </section>
+
+      {% if error_message %}
+        <section class="notice" role="status">
+          {{ error_message }}
+        </section>
+      {% endif %}
+
+      {% if audio.message %}
+        <section class="notice" role="status">
+          {{ audio.message }}
+        </section>
+      {% endif %}
+
+      <section class="animation-stage" aria-label="Animated lesson player">
+        <div class="stage-top">
+          <p id="scene-counter">Scene 1 of {{ scenes|length }}</p>
+          <p class="ai-note">AI voice may be used for narration.</p>
+        </div>
+
+        <div class="whiteboard-frame">
+          <img
+            id="scene-image"
+            src="{{ scenes[0].image.src }}"
+            alt="Whiteboard sketch for scene 1"
+          >
+          <div class="draw-highlight" aria-hidden="true"></div>
+        </div>
+
+        <p id="scene-caption" class="caption">{{ scenes[0].narration }}</p>
+        <p id="end-message" class="end-message" aria-live="polite">
+          Thanks for watching! This is the end of the lesson.
+        </p>
+
+        <div class="timeline" aria-label="Lesson steps">
+          {% for scene in scenes %}
+            <button
+              type="button"
+              class="step-dot{% if loop.first %} is-active{% endif %}"
+              data-scene-index="{{ loop.index0 }}"
+            >
+              {{ loop.index }}
+            </button>
+          {% endfor %}
+        </div>
+
+        <div class="player-actions">
+          <button id="play-button" type="button">Start lesson</button>
+          <button id="pause-button" type="button">Pause</button>
+        </div>
+
+        {% if audio.src %}
+          <audio id="lesson-audio" src="{{ audio.src }}"></audio>
+        {% endif %}
+      </section>
+
+      <section class="big-idea">
+        <h2>Big idea</h2>
+        <p>{{ lesson.big_idea }}</p>
+      </section>
+
+      <a class="back-button" href="{{ url_for('home') }}">Ask another question</a>
+    </main>
+
+    <script>
+      const scenes = {{ scenes|tojson }};
+      const image = document.getElementById("scene-image");
+      const caption = document.getElementById("scene-caption");
+      const counter = document.getElementById("scene-counter");
+      const dots = document.querySelectorAll(".step-dot");
+      const playButton = document.getElementById("play-button");
+      const pauseButton = document.getElementById("pause-button");
+      const audio = document.getElementById("lesson-audio");
+      const endMessage = document.getElementById("end-message");
+
+      let currentScene = 0;
+      let timerId = null;
+      let isPlaying = false;
+
+      function showScene(index) {
+        currentScene = index;
+        const scene = scenes[currentScene];
+
+        image.classList.remove("is-visible");
+        window.setTimeout(() => {
+          image.src = scene.image.src;
+          image.alt = `Whiteboard sketch for scene ${scene.number}`;
+          caption.textContent = scene.narration;
+        counter.textContent = `Scene ${scene.number} of ${scenes.length}`;
+        endMessage.classList.remove("is-visible");
+
+          dots.forEach((dot, dotIndex) => {
+            dot.classList.toggle("is-active", dotIndex === currentScene);
+          });
+
+          image.classList.add("is-visible");
+        }, 180);
+      }
+
+      function scheduleNextScene() {
+        window.clearTimeout(timerId);
+        const durationMs = scenes[currentScene].duration * 1000;
+
+        timerId = window.setTimeout(() => {
+          if (currentScene < scenes.length - 1) {
+            showScene(currentScene + 1);
+            scheduleNextScene();
+          } else {
+            isPlaying = false;
+            playButton.textContent = "Play again";
+            endMessage.classList.add("is-visible");
+          }
+        }, durationMs);
+      }
+
+      function startLesson() {
+        isPlaying = true;
+        playButton.textContent = "Playing...";
+
+        if (currentScene === scenes.length - 1) {
+          showScene(0);
+        }
+
+        endMessage.classList.remove("is-visible");
+
+        if (audio) {
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+        }
+
+        scheduleNextScene();
+      }
+
+      function pauseLesson() {
+        isPlaying = false;
+        window.clearTimeout(timerId);
+        playButton.textContent = "Start lesson";
+
+        if (audio) {
+          audio.pause();
+        }
+      }
+
+      playButton.addEventListener("click", () => {
+        if (!isPlaying) {
+          startLesson();
+        }
+      });
+
+      pauseButton.addEventListener("click", pauseLesson);
+
+      dots.forEach((dot) => {
+        dot.addEventListener("click", () => {
+          pauseLesson();
+          showScene(Number(dot.dataset.sceneIndex));
+        });
+      });
+
+      image.classList.add("is-visible");
+    </script>
+  </body>
+</html>
