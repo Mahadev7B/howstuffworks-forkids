@@ -14,15 +14,6 @@
       <span class="toy toy-star">&#11088;</span>
     </div>
     <main class="page">
-      <section id="launch-puzzle-modal" class="launch-puzzle-modal" aria-live="polite">
-        <div class="launch-puzzle-card">
-          <p class="puzzle-badge">Mini Mission</p>
-          <h2 id="launch-puzzle-title">Pizza Planet Puzzle</h2>
-          <p id="launch-puzzle-question">Loading puzzle...</p>
-          <p id="launch-puzzle-answer" class="subtitle">Get ready to type your answer in the lesson.</p>
-        </div>
-      </section>
-
       <section class="hero">
         <p class="eyebrow">Mission Control for Curious Kids</p>
         <h1>How It Works Kids</h1>
@@ -62,32 +53,9 @@
 
     <script>
       const forms = document.querySelectorAll(".question-form");
-      const puzzleModal = document.getElementById("launch-puzzle-modal");
-      const puzzleTitle = document.getElementById("launch-puzzle-title");
-      const puzzleQuestion = document.getElementById("launch-puzzle-question");
-      const puzzleAnswer = document.getElementById("launch-puzzle-answer");
-      const puzzles = [
-        {
-          title: "Pizza Planet Puzzle",
-          question: "1 pizza has 8 slices. You eat 3 slices. How many are left?"
-        },
-        {
-          title: "Pizza Planet Puzzle",
-          question: "2 pizzas each have 6 slices. You eat 4 slices. How many are left?"
-        }
-      ];
-
-      function showLaunchPuzzle() {
-        const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
-        puzzleTitle.textContent = puzzle.title;
-        puzzleQuestion.textContent = puzzle.question;
-        puzzleAnswer.textContent = "Get ready to type your answer in the lesson.";
-        puzzleModal.classList.add("is-visible");
-      }
 
       forms.forEach((form) => {
-        form.addEventListener("submit", (event) => {
-          event.preventDefault();
+        form.addEventListener("submit", () => {
           const message = form.querySelector(".loading-message");
           const button = form.querySelector("button");
 
@@ -99,11 +67,6 @@
             button.disabled = true;
             button.textContent = "Generating...";
           }
-
-          showLaunchPuzzle();
-          window.setTimeout(() => {
-            form.submit();
-          }, 900);
         });
       });
     </script>
