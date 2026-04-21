@@ -8,10 +8,10 @@
   </head>
   <body class="space-theme">
     <div class="space-toys" aria-hidden="true">
-      <span class="toy toy-rocket">🚀</span>
-      <span class="toy toy-planet">🪐</span>
-      <span class="toy toy-earth">🌍</span>
-      <span class="toy toy-star">⭐</span>
+      <span class="toy toy-rocket">&#128640;</span>
+      <span class="toy toy-planet">&#128760;</span>
+      <span class="toy toy-earth">&#127759;</span>
+      <span class="toy toy-star">&#11088;</span>
     </div>
     <main class="page animation-page">
       <section class="result-header">
@@ -33,15 +33,11 @@
       </section>
 
       {% if error_message %}
-        <section class="notice" role="status">
-          {{ error_message }}
-        </section>
+        <section class="notice" role="status">{{ error_message }}</section>
       {% endif %}
 
       {% if audio.message %}
-        <section class="notice" role="status">
-          {{ audio.message }}
-        </section>
+        <section class="notice" role="status">{{ audio.message }}</section>
       {% endif %}
 
       <section class="animation-stage" aria-label="Animated lesson player">
@@ -53,11 +49,22 @@
         <div class="whiteboard-frame">
           <div id="puzzle-overlay" class="puzzle-overlay">
             <p class="puzzle-badge">Mini Mission</p>
-            <h3>{{ puzzle.title }}</h3>
-            <p>{{ puzzle.prompt }}</p>
-            <p><strong>Answer:</strong> {{ puzzle.answer }}. {{ puzzle.explanation }}</p>
-            <button id="reveal-lesson-button" type="button">Show Lesson Slides</button>
+            <h3 id="puzzle-title">Pizza Puzzle 1</h3>
+            <p id="puzzle-question">Loading puzzle...</p>
+            <p id="puzzle-tip">Slide to check the answer, then get the next pizza puzzle.</p>
+            <div class="answer-slider-panel">
+              <p class="answer-label">Slide answer window</p>
+              <div class="answer-window">
+                <div id="answer-mask" class="answer-mask">
+                  <span id="puzzle-answer">Answer appears here.</span>
+                </div>
+              </div>
+              <input id="answer-slider" type="range" min="0" max="100" value="0">
+            </div>
+            <p id="puzzle-progress" class="subtitle">Puzzle 1</p>
+            <button id="reveal-lesson-button" class="lesson-locked" type="button">Show Lesson and Start</button>
           </div>
+
           <img id="scene-image" src="{{ scenes[0].image_url }}" alt="Whiteboard sketch for scene 1">
           <div class="draw-highlight" aria-hidden="true"></div>
         </div>
@@ -162,6 +169,7 @@
       const scenes = {{ scenes|tojson }};
       const lessonId = {{ lesson.id|tojson }};
       const questionText = {{ question|tojson }};
+      const studentGrade = {{ grade|tojson }};
       const image = document.getElementById("scene-image");
       const caption = document.getElementById("scene-caption");
       const counter = document.getElementById("scene-counter");
@@ -180,6 +188,14 @@
       const improvementsBody = document.getElementById("improvements-body");
       const hasAudio = Boolean(audio);
 
+      const puzzleTitle = document.getElementById("puzzle-title");
+      const puzzleQuestion = document.getElementById("puzzle-question");
+      const puzzleAnswer = document.getElementById("puzzle-answer");
+      const puzzleProgress = document.getElementById("puzzle-progress");
+      const puzzleTip = document.getElementById("puzzle-tip");
+      const answerSlider = document.getElementById("answer-slider");
+      const answerMask = document.getElementById("answer-mask");
+
       let currentScene = 0;
       let timerId = null;
       let isPlaying = false;
@@ -187,6 +203,74 @@
       let replayRecorded = false;
       let timelineStarts = [];
       let totalTimelineSeconds = 0;
+      let currentPuzzleIndex = 0;
+      let puzzleSolved = false;
+
+      function buildPizzaPuzzles(grade) {
+        if (grade <= 2) {
+          return [
+            {
+              title: "Pizza Puzzle 1",
+              question: "A pizza has 6 slices. You eat 2 slices. How many slices are left?",
+              answer: "4 slices are left."
+            },
+            {
+              title: "Pizza Puzzle 2",
+              question: "You have 3 slices and get 2 more slices. How many slices now?",
+              answer: "5 slices now."
+            }
+          ];
+        }
+
+        return [
+          {
+            title: "Pizza Puzzle 1",
+            question: "A pizza has 8 equal slices. You ate 2 slices. What fraction is left?",
+            answer: "6/8 is left, which is 3/4."
+          },
+          {
+            title: "Pizza Puzzle 2",
+            question: "You have 2 pizzas with 8 slices each. 1/4 of all slices were eaten. How many slices are left?",
+            answer: "16 total slices. 1/4 is 4 slices eaten. 12 slices are left."
+          },
+          {
+            title: "Pizza Puzzle 3",
+            question: "Each day you eat 1/3 of a small pizza. After 3 days, how many whole pizzas is that?",
+            answer: "1 whole pizza."
+          }
+        ];
+      }
+
+      const puzzles = buildPizzaPuzzles(studentGrade);
+
+      function loadPuzzle(index) {
+        const puzzle = puzzles[index];
+        puzzleSolved = false;
+        answerSlider.value = 0;
+        answerMask.style.width = "0%";
+        puzzleTitle.textContent = puzzle.title;
+        puzzleQuestion.textContent = puzzle.question;
+        puzzleAnswer.textContent = puzzle.answer;
+        puzzleProgress.textContent = `Puzzle ${index + 1} of ${puzzles.length}`;
+        puzzleTip.textContent = "Slide to check the answer, then get the next pizza puzzle.";
+      }
+
+      function advancePuzzleIfReady() {
+        if (puzzleSolved) {
+          return;
+        }
+        puzzleSolved = true;
+        if (currentPuzzleIndex < puzzles.length - 1) {
+          puzzleTip.textContent = "Great! One more pizza puzzle coming up...";
+          window.setTimeout(() => {
+            currentPuzzleIndex += 1;
+            loadPuzzle(currentPuzzleIndex);
+          }, 900);
+          return;
+        }
+        puzzleTip.textContent = "Awesome. You are ready for the lesson.";
+        revealLessonButton.classList.remove("lesson-locked");
+      }
 
       async function postForm(url, values) {
         const form = new URLSearchParams(values);
@@ -361,6 +445,14 @@
         });
       });
 
+      answerSlider.addEventListener("input", () => {
+        const revealPercent = Number(answerSlider.value);
+        answerMask.style.width = `${revealPercent}%`;
+        if (revealPercent >= 95) {
+          advancePuzzleIfReady();
+        }
+      });
+
       async function submitFeedback(feedbackType) {
         if (!lessonId) {
           feedbackStatus.textContent = "Feedback is unavailable: missing lesson id.";
@@ -437,6 +529,8 @@
       });
 
       buildTimelineStarts();
+      loadPuzzle(0);
+
       playButton.disabled = true;
       pauseButton.disabled = true;
 
@@ -449,6 +543,7 @@
         image.classList.add("is-visible");
         playButton.disabled = false;
         pauseButton.disabled = false;
+        startLesson();
       });
 
       if (hasAudio) {
@@ -459,10 +554,6 @@
         audio.addEventListener("ended", async () => {
           await finishLesson();
         });
-      }
-
-      if (lessonUnlocked) {
-        image.classList.add("is-visible");
       }
     </script>
   </body>

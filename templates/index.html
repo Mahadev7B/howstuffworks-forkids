@@ -8,10 +8,10 @@
   </head>
   <body class="space-theme">
     <div class="space-toys" aria-hidden="true">
-      <span class="toy toy-rocket">🚀</span>
-      <span class="toy toy-planet">🪐</span>
-      <span class="toy toy-earth">🌍</span>
-      <span class="toy toy-star">⭐</span>
+      <span class="toy toy-rocket">&#128640;</span>
+      <span class="toy toy-planet">&#128760;</span>
+      <span class="toy toy-earth">&#127759;</span>
+      <span class="toy toy-star">&#11088;</span>
     </div>
     <main class="page">
       <section id="launch-puzzle-modal" class="launch-puzzle-modal" aria-live="polite">
@@ -19,7 +19,7 @@
           <p class="puzzle-badge">Mini Mission</p>
           <h2 id="launch-puzzle-title">Pizza Planet Puzzle</h2>
           <p id="launch-puzzle-question">Loading puzzle...</p>
-          <p id="launch-puzzle-answer" class="subtitle"></p>
+          <p id="launch-puzzle-answer" class="subtitle">Get ready to slide and check your answer in the lesson.</p>
         </div>
       </section>
 
@@ -41,6 +41,15 @@
             autocomplete="off"
             required
           >
+          <label for="grade">Grade level</label>
+          <select id="grade" name="grade">
+            <option value="1">Grade 1</option>
+            <option value="2">Grade 2</option>
+            <option value="3" selected>Grade 3</option>
+            <option value="4">Grade 4</option>
+            <option value="5">Grade 5</option>
+            <option value="6">Grade 6</option>
+          </select>
           <button type="submit">Make a lesson</button>
           <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
         </form>
@@ -52,6 +61,7 @@
           {% for example in examples %}
             <form action="{{ url_for('animation') }}" method="post" class="question-form">
               <input type="hidden" name="question" value="{{ example }}">
+              <input type="hidden" name="grade" class="grade-hidden" value="3">
               <button class="example-button" type="submit">{{ example }}</button>
               <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
             </form>
@@ -66,16 +76,15 @@
       const puzzleTitle = document.getElementById("launch-puzzle-title");
       const puzzleQuestion = document.getElementById("launch-puzzle-question");
       const puzzleAnswer = document.getElementById("launch-puzzle-answer");
+      const gradeSelect = document.getElementById("grade");
       const puzzles = [
         {
           title: "Pizza Planet Puzzle",
-          question: "1 pizza has 8 slices. You eat 3 slices. How many are left?",
-          answer: "Answer: 5 slices are left."
+          question: "1 pizza has 8 slices. You eat 3 slices. How many are left?"
         },
         {
-          title: "Ice Cream Moon Puzzle",
-          question: "There are 7 scoops. 2 scoops melt. How many scoops stay?",
-          answer: "Answer: 5 scoops stay."
+          title: "Pizza Planet Puzzle",
+          question: "2 pizzas each have 6 slices. You eat 4 slices. How many are left?"
         }
       ];
 
@@ -83,7 +92,7 @@
         const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
         puzzleTitle.textContent = puzzle.title;
         puzzleQuestion.textContent = puzzle.question;
-        puzzleAnswer.textContent = puzzle.answer;
+        puzzleAnswer.textContent = "Get ready to slide and check your answer in the lesson.";
         puzzleModal.classList.add("is-visible");
       }
 
@@ -100,6 +109,11 @@
           if (button) {
             button.disabled = true;
             button.textContent = "Generating...";
+          }
+
+          const gradeHidden = form.querySelector(".grade-hidden");
+          if (gradeHidden && gradeSelect) {
+            gradeHidden.value = gradeSelect.value;
           }
 
           showLaunchPuzzle();

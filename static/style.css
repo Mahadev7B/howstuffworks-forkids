@@ -436,6 +436,43 @@ button:hover,
   font-size: 20px;
 }
 
+.answer-slider-panel {
+  width: min(620px, 100%);
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 2px solid rgba(60, 88, 185, 0.26);
+}
+
+.answer-label {
+  margin: 0 0 8px;
+  color: #24337a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.answer-window {
+  position: relative;
+  min-height: 44px;
+  border-radius: 10px;
+  background: #e8f1ff;
+  border: 2px solid #98b3ef;
+  overflow: hidden;
+}
+
+.answer-mask {
+  width: 0%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  white-space: nowrap;
+  color: #12205f;
+  font-weight: 700;
+  background: linear-gradient(90deg, #ffd88a, #ffd6fa 60%, #cde7ff);
+  border-right: 2px solid #6c84d8;
+}
+
 .puzzle-badge {
   padding: 6px 12px;
   border-radius: 999px;

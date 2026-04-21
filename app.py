@@ -52,10 +52,6 @@ def _build_puzzle(kind: str) -> dict:
     return puzzle_bank[kind] | {"kind": kind}
 
 
-def _build_inline_puzzle() -> dict:
-    return _build_puzzle(random.choice(["pizza", "icecream"]))
-
-
 @app.route("/", methods=["GET"])
 def home():
     examples = [
@@ -80,6 +76,10 @@ def puzzle():
 @app.route("/animation", methods=["POST"])
 def animation():
     question = request.form.get("question", "").strip()
+    grade = request.form.get("grade", type=int)
+    if grade is None:
+        grade = 3
+    grade = max(1, min(grade, 6))
     if not question:
         return redirect(url_for("home"))
 
@@ -113,7 +113,7 @@ def animation():
         },
         scenes=scenes,
         audio=audio,
-        puzzle=_build_inline_puzzle(),
+        grade=grade,
         improvements=improvements,
         error_message=" ".join(response.messages) if response.messages else None,
         reused=response.reused,
