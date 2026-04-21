@@ -106,10 +106,46 @@ def _apply_spelling_fixes_to_lesson(lesson_data: dict, fixes: list[tuple[str, st
 def _get_recent_improvement_notes(*, session, limit: int = 25) -> list[str]:
     rows = session.execute(
         select(LessonImprovement)
+        .where(LessonImprovement.status == "queued")
         .order_by(LessonImprovement.created_at.desc())
         .limit(limit)
     ).scalars()
     return [row.comment_text for row in rows if row.comment_text]
+
+
+def _is_actionable_improvement(category: str, comment_text: str) -> bool:
+    text = (comment_text or "").strip().lower()
+    if len(text) < 10:
+        return False
+
+    # Ignore obvious noise.
+    noisy_phrases = {"test", "hello", "hi", "good", "nice", "ok", "cool", "thanks"}
+    if text in noisy_phrases:
+        return False
+
+    if category in {"spelling", "timing", "visuals", "voice"}:
+        return True
+
+    # For "general", require at least one concrete quality keyword.
+    quality_keywords = (
+        "spell",
+        "typo",
+        "wrong",
+        "incorrect",
+        "unclear",
+        "confusing",
+        "timing",
+        "scene",
+        "slide",
+        "caption",
+        "image",
+        "visual",
+        "voice",
+        "audio",
+        "pronunciation",
+        "grammar",
+    )
+    return any(keyword in text for keyword in quality_keywords)
 
 
 def save_lesson(
@@ -509,12 +545,16 @@ def record_improvement(
     category: str,
     comment_text: str,
 ) -> LessonImprovement:
+    cleaned_category = (category or "general").strip().lower()
+    cleaned_comment = comment_text.strip()
+    status = "queued" if _is_actionable_improvement(cleaned_category, cleaned_comment) else "ignored"
+
     improvement = LessonImprovement(
         lesson_id=lesson_id,
         raw_question=raw_question,
-        category=(category or "general").strip().lower(),
-        comment_text=comment_text.strip(),
-        status="received",
+        category=cleaned_category,
+        comment_text=cleaned_comment,
+        status=status,
     )
     session.add(improvement)
     session.commit()
