@@ -105,11 +105,14 @@
       const audio = document.getElementById("lesson-audio");
       const endMessage = document.getElementById("end-message");
       const feedbackStatus = document.getElementById("feedback-status");
+      const hasAudio = Boolean(audio);
 
       let currentScene = 0;
       let timerId = null;
       let isPlaying = false;
       let replayRecorded = false;
+      let timelineStarts = [];
+      let totalTimelineSeconds = 0;
 
       async function postForm(url, values) {
         const form = new URLSearchParams(values);
@@ -149,6 +152,61 @@
         }, 180);
       }
 
+      function buildTimelineStarts() {
+        timelineStarts = [];
+        totalTimelineSeconds = 0;
+        scenes.forEach((scene) => {
+          timelineStarts.push(totalTimelineSeconds);
+          const duration = Number(scene.duration) > 0 ? Number(scene.duration) : 1;
+          totalTimelineSeconds += duration;
+        });
+      }
+
+      function getScaledTimelineStarts() {
+        if (!hasAudio || !Number.isFinite(audio.duration) || audio.duration <= 0 || totalTimelineSeconds <= 0) {
+          return timelineStarts;
+        }
+        const scale = audio.duration / totalTimelineSeconds;
+        return timelineStarts.map((start) => start * scale);
+      }
+
+      function getSceneIndexForTime(timeSeconds) {
+        const starts = getScaledTimelineStarts();
+        for (let index = starts.length - 1; index >= 0; index -= 1) {
+          if (timeSeconds >= starts[index]) {
+            return index;
+          }
+        }
+        return 0;
+      }
+
+      function getSceneStartTime(index) {
+        const starts = getScaledTimelineStarts();
+        return starts[index] || 0;
+      }
+
+      function syncSceneToAudioTime() {
+        if (!hasAudio) {
+          return;
+        }
+        const nextScene = getSceneIndexForTime(audio.currentTime || 0);
+        if (nextScene !== currentScene) {
+          showScene(nextScene);
+        }
+      }
+
+      async function finishLesson() {
+        isPlaying = false;
+        playButton.textContent = "Play again";
+        endMessage.classList.add("is-visible");
+        window.clearTimeout(timerId);
+
+        if (!replayRecorded) {
+          replayRecorded = true;
+          await postForm("/replay", { lesson_id: lessonId });
+        }
+      }
+
       function scheduleNextScene() {
         window.clearTimeout(timerId);
         const durationMs = scenes[currentScene].duration * 1000;
@@ -158,13 +216,7 @@
             showScene(currentScene + 1);
             scheduleNextScene();
           } else {
-            isPlaying = false;
-            playButton.textContent = "Play again";
-            endMessage.classList.add("is-visible");
-            if (!replayRecorded) {
-              replayRecorded = true;
-              await postForm("/replay", { lesson_id: lessonId });
-            }
+            await finishLesson();
           }
         }, durationMs);
       }
@@ -179,18 +231,27 @@
 
         endMessage.classList.remove("is-visible");
 
-        if (audio) {
-          audio.currentTime = 0;
-          audio.play().catch(() => {});
+        if (hasAudio) {
+          const atEnd = Number.isFinite(audio.duration) && audio.duration > 0 && audio.currentTime >= audio.duration - 0.1;
+          if (atEnd) {
+            audio.currentTime = 0;
+            showScene(0);
+          }
+          audio.play().catch(() => {
+            isPlaying = false;
+            playButton.textContent = "Start lesson";
+          });
+          return;
         }
+
         scheduleNextScene();
       }
 
       function pauseLesson() {
         isPlaying = false;
         window.clearTimeout(timerId);
-        playButton.textContent = "Start lesson";
-        if (audio) {
+        playButton.textContent = "Resume lesson";
+        if (hasAudio) {
           audio.pause();
         }
       }
@@ -206,7 +267,11 @@
       dots.forEach((dot) => {
         dot.addEventListener("click", () => {
           pauseLesson();
-          showScene(Number(dot.dataset.sceneIndex));
+          const nextIndex = Number(dot.dataset.sceneIndex);
+          showScene(nextIndex);
+          if (hasAudio) {
+            audio.currentTime = getSceneStartTime(nextIndex);
+          }
         });
       });
 
@@ -238,6 +303,18 @@
       document.getElementById("confusing-button").addEventListener("click", async () => {
         await submitFeedback("confusing");
       });
+
+      buildTimelineStarts();
+
+      if (hasAudio) {
+        audio.addEventListener("loadedmetadata", syncSceneToAudioTime);
+        audio.addEventListener("durationchange", syncSceneToAudioTime);
+        audio.addEventListener("timeupdate", syncSceneToAudioTime);
+        audio.addEventListener("seeking", syncSceneToAudioTime);
+        audio.addEventListener("ended", async () => {
+          await finishLesson();
+        });
+      }
 
       image.classList.add("is-visible");
     </script>
