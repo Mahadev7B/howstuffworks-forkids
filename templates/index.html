@@ -14,6 +14,20 @@
       <span class="toy toy-star">&#11088;</span>
     </div>
     <main class="page">
+      <section id="launch-puzzle-modal" class="launch-puzzle-modal" aria-live="polite">
+        <div class="launch-puzzle-card">
+          <p class="puzzle-badge">Mini Mission</p>
+          <h2 id="launch-puzzle-title">Pizza Puzzle</h2>
+          <p id="launch-puzzle-question">Loading puzzle...</p>
+          <div class="puzzle-answer-form">
+            <input id="launch-puzzle-input" type="text" placeholder="Type your answer">
+            <button id="launch-check-button" type="button">Check</button>
+          </div>
+          <p id="launch-puzzle-feedback" class="subtitle"></p>
+          <p id="launch-puzzle-status" class="subtitle">Lesson is preparing in the background...</p>
+        </div>
+      </section>
+
       <section class="hero">
         <p class="eyebrow">Mission Control for Curious Kids</p>
         <h1>How It Works Kids</h1>
@@ -33,7 +47,7 @@
             required
           >
           <button type="submit">Make a lesson</button>
-          <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
+          <p class="loading-message" aria-live="polite"></p>
         </form>
       </section>
 
@@ -44,7 +58,7 @@
             <form action="{{ url_for('animation') }}" method="post" class="question-form">
               <input type="hidden" name="question" value="{{ example }}">
               <button class="example-button" type="submit">{{ example }}</button>
-              <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
+              <p class="loading-message" aria-live="polite"></p>
             </form>
           {% endfor %}
         </div>
@@ -53,19 +67,94 @@
 
     <script>
       const forms = document.querySelectorAll(".question-form");
+      const puzzleModal = document.getElementById("launch-puzzle-modal");
+      const puzzleTitle = document.getElementById("launch-puzzle-title");
+      const puzzleQuestion = document.getElementById("launch-puzzle-question");
+      const puzzleInput = document.getElementById("launch-puzzle-input");
+      const puzzleFeedback = document.getElementById("launch-puzzle-feedback");
+      const puzzleStatus = document.getElementById("launch-puzzle-status");
+      const checkButton = document.getElementById("launch-check-button");
+      let modalPuzzleIndex = 0;
+
+      const modalPuzzles = [
+        { title: "Pizza Puzzle 1", question: "A pizza has 8 slices. You eat 3. How many are left?", answer: "5", answerText: "5 slices are left." },
+        { title: "Pizza Puzzle 2", question: "Two pizzas have 12 slices each. You eat 6 slices total. How many are left?", answer: "18", answerText: "18 slices are left." },
+        { title: "Pizza Puzzle 3", question: "You eat 1/2 of a pizza and your friend eats 1/4. How much is eaten total?", answer: "3/4", answerText: "3/4 of the pizza is eaten." }
+      ];
+
+      function loadModalPuzzle(index) {
+        const puzzle = modalPuzzles[index % modalPuzzles.length];
+        puzzleTitle.textContent = puzzle.title;
+        puzzleQuestion.textContent = puzzle.question;
+        puzzleFeedback.textContent = "";
+        puzzleInput.value = "";
+      }
+
+      function checkModalPuzzle() {
+        const puzzle = modalPuzzles[modalPuzzleIndex % modalPuzzles.length];
+        const answer = puzzleInput.value.trim().toLowerCase();
+        if (!answer) {
+          puzzleFeedback.textContent = "Type an answer first.";
+          return;
+        }
+        if (answer === puzzle.answer.toLowerCase()) {
+          puzzleFeedback.textContent = "Correct! Nice job. Next puzzle...";
+        } else {
+          puzzleFeedback.textContent = `Nice try! Correct answer: ${puzzle.answerText} Next puzzle...`;
+        }
+        modalPuzzleIndex += 1;
+        window.setTimeout(() => {
+          loadModalPuzzle(modalPuzzleIndex);
+        }, 700);
+      }
+
+      checkButton.addEventListener("click", checkModalPuzzle);
+      puzzleInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          checkModalPuzzle();
+        }
+      });
 
       forms.forEach((form) => {
-        form.addEventListener("submit", () => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
           const message = form.querySelector(".loading-message");
           const button = form.querySelector("button");
-
-          if (message) {
-            message.classList.add("is-visible");
-          }
 
           if (button) {
             button.disabled = true;
             button.textContent = "Generating...";
+          }
+
+          if (message) {
+            message.classList.remove("is-visible");
+          }
+
+          modalPuzzleIndex = 0;
+          loadModalPuzzle(modalPuzzleIndex);
+          puzzleStatus.textContent = "Lesson is preparing in the background...";
+          puzzleModal.classList.add("is-visible");
+
+          const formData = new FormData(form);
+          const body = new URLSearchParams();
+          for (const [key, value] of formData.entries()) {
+            body.append(key, String(value));
+          }
+
+          try {
+            const response = await fetch(form.action, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body
+            });
+            const html = await response.text();
+            document.open();
+            document.write(html);
+            document.close();
+          } catch (error) {
+            puzzleStatus.textContent = "Network issue. Retrying with normal submit...";
+            form.submit();
           }
         });
       });
