@@ -43,7 +43,7 @@ def animation():
     scenes = lesson_payload.get("scenes", [])
     audio = {
         "src": lesson_payload.get("audio_url"),
-        "message": None,
+        "message": None if lesson_payload.get("audio_url") else "Audio is unavailable for this lesson, so captions are guiding the lesson.",
     }
 
     return render_template(

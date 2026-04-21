@@ -3,6 +3,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from sqlalchemy import select
@@ -253,6 +254,35 @@ def _build_lesson_payload(lesson: Lesson) -> dict:
     return payload
 
 
+def _media_exists(media_storage_path: str, media_url: str) -> bool:
+    if not media_url or not media_url.startswith("/media/"):
+        return False
+    relative_path = media_url[len("/media/") :]
+    media_root = Path(media_storage_path).resolve()
+    candidate = (media_root / relative_path).resolve()
+    if media_root not in candidate.parents and candidate != media_root:
+        return False
+    return candidate.exists()
+
+
+def _lesson_has_reusable_media(lesson: Lesson, settings: Settings) -> bool:
+    payload = _build_lesson_payload(lesson)
+    scenes = payload.get("scenes", [])
+    if not scenes:
+        return False
+
+    for scene in scenes:
+        image_url = scene.get("image_url")
+        if not _media_exists(settings.media_storage_path, image_url):
+            return False
+
+    audio_url = payload.get("audio_url")
+    if audio_url and not _media_exists(settings.media_storage_path, audio_url):
+        return False
+
+    return True
+
+
 def handle_question(question: str, session, settings: Settings) -> LessonResponse:
     started = time.perf_counter()
     normalized_question = normalize_question(question)
@@ -275,7 +305,7 @@ def handle_question(question: str, session, settings: Settings) -> LessonRespons
         similarity_threshold=settings.similarity_threshold,
         intent=intent,
         visual_type=visual_type,
-    ):
+    ) and _lesson_has_reusable_media(matched_lesson, settings):
         lesson = matched_lesson
         lesson.reuse_count += 1
         lesson.last_used_at = _utcnow()
