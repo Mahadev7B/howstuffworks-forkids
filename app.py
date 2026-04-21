@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import random
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, url_for
@@ -15,6 +16,8 @@ from lesson_platform import (
     record_feedback,
     record_improvement,
 )
+from lesson_platform.ai_generation import create_openai_client, generate_audio, generate_scene_images
+from lesson_platform.media_store import save_media_file
 
 
 load_dotenv()
@@ -27,6 +30,30 @@ settings = load_settings()
 init_db(settings)
 
 
+def _build_puzzle(kind: str) -> dict:
+    puzzle_bank = {
+        "pizza": {
+            "title": "Pizza Planet Fractions",
+            "prompt": "You have 1 whole space pizza. You eat 1/4 and your friend eats 2/4. How much pizza is left?",
+            "options": ["1/4", "2/4", "3/4"],
+            "answer": "1/4",
+            "explanation": "1/4 + 2/4 = 3/4 eaten, so 1/4 is left.",
+            "image_prompt": "cartoon kids on a spaceship sharing a pizza cut into 4 slices, educational fraction labels, colorful, kid friendly",
+        },
+        "icecream": {
+            "title": "Ice Cream Moon Scoops",
+            "prompt": "A cone has 6 scoops. 2 scoops melt in the sun. How many scoops are left?",
+            "options": ["3", "4", "5"],
+            "answer": "4",
+            "explanation": "6 - 2 = 4 scoops left.",
+            "image_prompt": "cartoon ice cream cone with 6 scoops on the moon, 2 scoops melting, numbers for kids, colorful, educational",
+        },
+    }
+    if kind not in puzzle_bank:
+        kind = random.choice(list(puzzle_bank.keys()))
+    return puzzle_bank[kind] | {"kind": kind}
+
+
 @app.route("/", methods=["GET"])
 def home():
     examples = [
@@ -35,6 +62,65 @@ def home():
         "Why do plants need sunlight?",
     ]
     return render_template("index.html", examples=examples)
+
+
+@app.route("/puzzle", methods=["POST"])
+def puzzle():
+    kind = request.form.get("kind", "").strip().lower()
+    puzzle_data = _build_puzzle(kind)
+
+    client = create_openai_client(settings)
+    generated_images, messages, _, _ = generate_scene_images(
+        [puzzle_data["image_prompt"]],
+        settings,
+        client,
+    )
+    puzzle_audio, audio_message, _, _ = generate_audio(
+        [
+            f"Space puzzle mission. {puzzle_data['prompt']}",
+            f"Answer: {puzzle_data['answer']}. {puzzle_data['explanation']}",
+        ],
+        settings,
+        client,
+    )
+
+    image_url = None
+    audio_url = None
+    image_ready = False
+    audio_ready = False
+    if generated_images:
+        image = generated_images[0]
+        image_ref = save_media_file(
+            settings.media_storage_path,
+            media_type="image",
+            ext=image.ext,
+            content=image.content,
+        )
+        image_url = f"/media/{image_ref}"
+        image_ready = image.ext == "png"
+
+    if puzzle_audio:
+        audio_ref = save_media_file(
+            settings.media_storage_path,
+            media_type="audio",
+            ext=puzzle_audio.ext,
+            content=puzzle_audio.content,
+        )
+        audio_url = f"/media/{audio_ref}"
+        audio_ready = True
+
+    assets_ready = image_ready and audio_ready
+    if audio_message:
+        messages.append(audio_message)
+
+    return render_template(
+        "puzzle.html",
+        puzzle=puzzle_data,
+        image_url=image_url,
+        audio_url=audio_url,
+        assets_ready=assets_ready,
+        image_message=" ".join(messages) if messages else None,
+    )
 
 
 @app.route("/animation", methods=["POST"])

@@ -1,13 +1,14 @@
 :root {
-  --blue: #dff4ff;
-  --blue-deep: #2f6f8f;
-  --purple: #efe7ff;
-  --purple-deep: #5d4b9a;
-  --pink: #ffe5f1;
-  --ink: #283044;
-  --paper: #fffafd;
+  --blue: #d6ecff;
+  --blue-deep: #2678d1;
+  --purple: #241a59;
+  --purple-deep: #5f9bff;
+  --pink: #ff8bd3;
+  --ink: #eaf3ff;
+  --paper: #101a44;
   --white: #ffffff;
-  --border: #dacff2;
+  --border: #4a63c7;
+  --gold: #ffd55e;
 }
 
 * {
@@ -18,9 +19,33 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Trebuchet MS", "Comic Sans MS", "Arial Rounded MT Bold", Arial, sans-serif;
   background:
-    linear-gradient(135deg, var(--blue), var(--purple) 52%, var(--pink));
+    radial-gradient(circle at 12% 20%, rgba(255, 214, 133, 0.35), transparent 22%),
+    radial-gradient(circle at 84% 12%, rgba(127, 196, 255, 0.34), transparent 18%),
+    radial-gradient(circle at 78% 68%, rgba(255, 124, 196, 0.24), transparent 20%),
+    linear-gradient(160deg, #081234 0%, #111d52 48%, #2b1760 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 10% 15%, rgba(255, 255, 255, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 25% 70%, rgba(255, 255, 255, 0.9) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 60% 30%, rgba(255, 255, 255, 0.9) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 82% 55%, rgba(255, 255, 255, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 50% 85%, rgba(255, 255, 255, 0.9) 0 1.5px, transparent 2.5px);
+  opacity: 0.45;
+  z-index: 0;
+}
+
+main {
+  position: relative;
+  z-index: 1;
 }
 
 .page {
@@ -37,9 +62,11 @@ body {
 
 .eyebrow {
   margin: 0 0 10px;
-  color: var(--purple-deep);
+  color: var(--gold);
   font-size: 16px;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 h1,
@@ -50,14 +77,15 @@ p {
 
 h1 {
   margin: 0;
-  color: var(--blue-deep);
+  color: #f4f8ff;
   font-size: 44px;
   line-height: 1.1;
+  text-shadow: 0 4px 20px rgba(19, 42, 130, 0.55);
 }
 
 h2 {
   margin: 0 0 14px;
-  color: var(--purple-deep);
+  color: #d6e4ff;
   font-size: 24px;
 }
 
@@ -75,9 +103,10 @@ h2 {
 .notice {
   margin-top: 20px;
   padding: 24px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  background: rgba(17, 31, 84, 0.86);
+  border: 2px solid rgba(124, 161, 255, 0.6);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(5, 10, 34, 0.35);
 }
 
 form {
@@ -127,9 +156,10 @@ button,
   text-align: center;
   text-decoration: none;
   border: 0;
-  border-radius: 8px;
-  background: var(--purple-deep);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff8f5e, #ff52be 55%, #7059ff);
   cursor: pointer;
+  box-shadow: 0 10px 20px rgba(22, 12, 66, 0.35);
 }
 
 button:disabled {
@@ -139,7 +169,7 @@ button:disabled {
 
 button:hover,
 .back-button:hover {
-  background: var(--blue-deep);
+  background: linear-gradient(135deg, #ffd05d, #ff7eb8 50%, #4ea3ff);
 }
 
 .example-list {
@@ -151,9 +181,9 @@ button:hover,
 .example-button {
   width: 100%;
   height: 100%;
-  color: var(--ink);
-  background: var(--pink);
-  border: 2px solid var(--border);
+  color: #f5f9ff;
+  background: linear-gradient(135deg, #2a2b7f, #374cbc);
+  border: 2px solid rgba(137, 171, 255, 0.8);
 }
 
 .example-button:hover {
@@ -166,6 +196,7 @@ button:hover,
 .loading-message {
   font-size: 20px;
   line-height: 1.6;
+  color: #e8f2ff;
 }
 
 .loading-message {
@@ -193,12 +224,12 @@ button:hover,
 }
 
 .big-idea {
-  background: rgba(223, 244, 255, 0.9);
+  background: rgba(18, 53, 110, 0.86);
 }
 
 .notice {
-  color: #5b476b;
-  background: rgba(255, 229, 241, 0.9);
+  color: #f9dcff;
+  background: rgba(64, 36, 122, 0.86);
 }
 
 .prompt-text {
@@ -239,9 +270,9 @@ button:hover,
 .animation-stage {
   margin-top: 20px;
   padding: 22px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  background: rgba(16, 30, 82, 0.9);
+  border: 2px solid rgba(124, 161, 255, 0.6);
+  border-radius: 16px;
 }
 
 .stage-top,
@@ -268,9 +299,9 @@ button:hover,
   position: relative;
   overflow: hidden;
   margin-top: 18px;
-  background: var(--paper);
-  border: 3px solid var(--ink);
-  border-radius: 8px;
+  background: #f8fbff;
+  border: 3px solid #a8c5ff;
+  border-radius: 14px;
   aspect-ratio: 16 / 9;
 }
 
@@ -308,28 +339,28 @@ button:hover,
   min-height: 72px;
   margin: 18px 0 0;
   padding: 16px;
-  color: var(--ink);
+  color: #f4f8ff;
   font-size: 24px;
   font-weight: 700;
   line-height: 1.35;
   text-align: center;
-  background: var(--blue);
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  background: rgba(36, 67, 150, 0.82);
+  border: 2px solid rgba(137, 171, 255, 0.8);
+  border-radius: 14px;
 }
 
 .end-message {
   display: none;
   margin: 14px 0 0;
   padding: 14px;
-  color: var(--purple-deep);
+  color: #fff1a6;
   font-size: 21px;
   font-weight: 700;
   line-height: 1.4;
   text-align: center;
-  background: var(--pink);
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  background: rgba(68, 39, 133, 0.88);
+  border: 2px solid rgba(255, 194, 110, 0.7);
+  border-radius: 14px;
 }
 
 .end-message.is-visible {
@@ -345,14 +376,14 @@ button:hover,
 
 .step-dot {
   min-height: 48px;
-  color: var(--purple-deep);
-  background: var(--pink);
-  border: 2px solid var(--border);
+  color: #f1f6ff;
+  background: linear-gradient(135deg, #2d3e97, #3958d7);
+  border: 2px solid rgba(137, 171, 255, 0.8);
 }
 
 .step-dot.is-active {
-  color: var(--white);
-  background: var(--blue-deep);
+  color: #1a1c49;
+  background: linear-gradient(135deg, #ffdf82, #ffd05a);
 }
 
 .player-actions {
@@ -382,8 +413,8 @@ button:hover,
 .improvements-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--white);
-  border: 2px solid var(--border);
+  background: rgba(17, 30, 78, 0.95);
+  border: 2px solid rgba(124, 161, 255, 0.6);
 }
 
 .improvements-table th,
@@ -392,13 +423,32 @@ button:hover,
   font-size: 16px;
   line-height: 1.4;
   text-align: left;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(124, 161, 255, 0.35);
   vertical-align: top;
 }
 
 .improvements-table th {
-  color: var(--purple-deep);
-  background: var(--blue);
+  color: #ffeea8;
+  background: rgba(42, 65, 148, 0.92);
+}
+
+.puzzle-frame {
+  max-width: 920px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.puzzle-options {
+  margin-top: 22px;
+}
+
+.puzzle-choice {
+  font-size: 24px;
+}
+
+.caption.is-correct {
+  border-color: rgba(150, 255, 180, 0.9);
+  box-shadow: 0 0 0 3px rgba(112, 226, 152, 0.25);
 }
 
 @media (max-width: 720px) {
