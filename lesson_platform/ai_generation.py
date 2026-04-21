@@ -1,4 +1,5 @@
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import time
 from dataclasses import dataclass
@@ -100,7 +101,12 @@ def validate_lesson_plan(lesson: AnimationLesson) -> dict:
     return data
 
 
-def generate_lesson_plan(question: str, settings: Settings, client: Optional[OpenAI]) -> tuple[dict, str, int, float]:
+def generate_lesson_plan(
+    question: str,
+    settings: Settings,
+    client: Optional[OpenAI],
+    improvement_notes: Optional[List[str]] = None,
+) -> tuple[dict, str, int, float]:
     started = time.perf_counter()
     if client is None:
         lesson = fallback_lesson_plan(question)
@@ -108,11 +114,20 @@ def generate_lesson_plan(question: str, settings: Settings, client: Optional[Ope
         return lesson, "Add your OpenAI API key to generate a live lesson.", elapsed_ms, 0.0
 
     try:
+        quality_notes = ""
+        if improvement_notes:
+            notes = [f"- {note}" for note in improvement_notes[:12]]
+            quality_notes = (
+                "\nQuality guidance from user feedback:\n"
+                + "\n".join(notes)
+                + "\nApply spelling corrections and avoid repeated mistakes."
+            )
+
         response = client.responses.parse(
             model=settings.openai_model,
             input=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Question: {question}"},
+                {"role": "user", "content": f"Question: {question}{quality_notes}"},
             ],
             text_format=AnimationLesson,
         )
@@ -169,8 +184,8 @@ def generate_scene_images(
     messages: List[str] = []
     estimated_cost = 0.0
 
-    for prompt in scene_prompts:
-        if client is None:
+    if client is None:
+        for _ in scene_prompts:
             images.append(
                 GeneratedMedia(
                     content=_placeholder_svg_bytes(),
@@ -179,41 +194,58 @@ def generate_scene_images(
                     message="Add your OpenAI API key to generate sketch images.",
                 )
             )
-            continue
-
-        image_prompt = (
-            "Draw a black and white pencil sketch educational diagram for kids ages 6 to 10. "
-            "Keep it simple, friendly, clear, and safe. Use simple labels. "
-            f"Diagram idea: {add_whiteboard_style(prompt)}"
-        )
-        try:
-            response = client.images.generate(
-                model=settings.openai_image_model,
-                prompt=image_prompt,
-                size="1024x1024",
-                quality="low",
-                output_format="png",
-                n=1,
+    else:
+        def _generate_one(prompt: str) -> GeneratedMedia:
+            image_prompt = (
+                "Draw a black and white pencil sketch educational diagram for kids ages 6 to 10. "
+                "Keep it simple, friendly, clear, and safe. Use simple labels. "
+                f"Diagram idea: {add_whiteboard_style(prompt)}"
             )
-            image_base64 = _extract_image_base64(response)
-            images.append(
-                GeneratedMedia(
+            try:
+                response = client.images.generate(
+                    model=settings.openai_image_model,
+                    prompt=image_prompt,
+                    size=settings.image_size,
+                    quality="low",
+                    output_format="png",
+                    n=1,
+                )
+                image_base64 = _extract_image_base64(response)
+                return GeneratedMedia(
                     content=base64.b64decode(image_base64),
                     ext="png",
                     media_type="image",
                 )
-            )
-            estimated_cost += 0.02
-        except (OpenAIError, ValueError, AttributeError, TypeError):
-            logger.exception("Image generation failed for one scene; using placeholder.")
-            images.append(
-                GeneratedMedia(
+            except (OpenAIError, ValueError, AttributeError, TypeError):
+                logger.exception("Image generation failed for one scene; using placeholder.")
+                return GeneratedMedia(
                     content=_placeholder_svg_bytes(),
                     ext="svg",
                     media_type="image",
                     message="The sketch could not be generated right now, so a placeholder is used.",
                 )
-            )
+
+        ordered_results: list[Optional[GeneratedMedia]] = [None] * len(scene_prompts)
+        with ThreadPoolExecutor(max_workers=min(settings.image_parallelism, len(scene_prompts))) as executor:
+            future_map = {
+                executor.submit(_generate_one, scene_prompt): index
+                for index, scene_prompt in enumerate(scene_prompts)
+            }
+            for future in as_completed(future_map):
+                index = future_map[future]
+                ordered_results[index] = future.result()
+
+        for result in ordered_results:
+            if result is None:
+                result = GeneratedMedia(
+                    content=_placeholder_svg_bytes(),
+                    ext="svg",
+                    media_type="image",
+                    message="Image generation timed out; using placeholder.",
+                )
+            images.append(result)
+            if result.ext == "png":
+                estimated_cost += 0.02
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     for image in images:
@@ -228,6 +260,10 @@ def generate_audio(
     client: Optional[OpenAI],
 ) -> tuple[Optional[GeneratedMedia], str, int, float]:
     started = time.perf_counter()
+    if not settings.audio_enabled:
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        return None, "Audio generation is disabled for faster responses.", elapsed_ms, 0.0
+
     if client is None:
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return None, "Add your OpenAI API key to generate narration audio.", elapsed_ms, 0.0

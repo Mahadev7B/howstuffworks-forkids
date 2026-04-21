@@ -102,6 +102,21 @@ class LessonFeedback(Base):
     lesson: Mapped[Lesson] = relationship(back_populates="feedback_records")
 
 
+class LessonImprovement(Base):
+    __tablename__ = "lesson_improvements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True, index=True)
+    raw_question: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, default="general", index=True)
+    comment_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="received", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
 class Template(Base):
     __tablename__ = "templates"
 

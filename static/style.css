@@ -100,6 +100,23 @@ input[type="text"] {
   background: var(--paper);
 }
 
+select,
+textarea {
+  width: 100%;
+  padding: 12px;
+  color: var(--ink);
+  font-size: 18px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
 button,
 .back-button {
   display: inline-block;
@@ -357,6 +374,33 @@ button:hover,
   margin-top: 22px;
 }
 
+.improvements-table-wrap {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.improvements-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+  border: 2px solid var(--border);
+}
+
+.improvements-table th,
+.improvements-table td {
+  padding: 10px;
+  font-size: 16px;
+  line-height: 1.4;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.improvements-table th {
+  color: var(--purple-deep);
+  background: var(--blue);
+}
+
 @media (max-width: 720px) {
   .page {
     width: min(100% - 24px, 920px);
@@ -391,5 +435,10 @@ button:hover,
 
   .caption {
     font-size: 20px;
+  }
+
+  .improvements-table th,
+  .improvements-table td {
+    font-size: 14px;
   }
 }

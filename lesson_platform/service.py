@@ -1,6 +1,8 @@
 import json
 import logging
+import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,7 +14,14 @@ from sqlalchemy.orm import joinedload
 from .ai_generation import create_openai_client, generate_audio, generate_lesson_plan, generate_scene_images
 from .config import Settings
 from .media_store import save_media_file
-from .models import Lesson, LessonFeedback, LessonMedia, LessonRequest, QuestionVariant
+from .models import (
+    Lesson,
+    LessonFeedback,
+    LessonImprovement,
+    LessonMedia,
+    LessonRequest,
+    QuestionVariant,
+)
 from .question_processing import classify_question, normalize_question
 from .semantic import (
     compute_embedding,
@@ -46,6 +55,61 @@ def _meaning_group_id(intent: str, visual_type: str, normalized_question: str) -
 
 def _media_url(file_path: str) -> str:
     return f"/media/{file_path}"
+
+
+def _extract_spelling_fixes(improvement_notes: list[str]) -> list[tuple[str, str]]:
+    fixes: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    arrow_pattern = re.compile(r"([A-Za-z][A-Za-z' -]{1,40})\s*(?:->|=>|→)\s*([A-Za-z][A-Za-z' -]{1,40})")
+    replace_pattern = re.compile(
+        r"replace\s+['\"]?([A-Za-z][A-Za-z' -]{1,40})['\"]?\s+with\s+['\"]?([A-Za-z][A-Za-z' -]{1,40})['\"]?",
+        re.IGNORECASE,
+    )
+
+    for note in improvement_notes:
+        for pattern in (arrow_pattern, replace_pattern):
+            for match in pattern.findall(note):
+                wrong = " ".join(match[0].strip().split())
+                correct = " ".join(match[1].strip().split())
+                if wrong.lower() == correct.lower():
+                    continue
+                key = (wrong.lower(), correct)
+                if key in seen:
+                    continue
+                seen.add(key)
+                fixes.append((wrong, correct))
+    return fixes
+
+
+def _apply_spelling_fixes(text: str, fixes: list[tuple[str, str]]) -> str:
+    updated = text
+    for wrong, correct in fixes:
+        pattern = re.compile(rf"\b{re.escape(wrong)}\b", flags=re.IGNORECASE)
+        updated = pattern.sub(correct, updated)
+    return updated
+
+
+def _apply_spelling_fixes_to_lesson(lesson_data: dict, fixes: list[tuple[str, str]]) -> dict:
+    if not fixes:
+        return lesson_data
+
+    lesson_data["title"] = _apply_spelling_fixes(lesson_data.get("title", ""), fixes)
+    lesson_data["big_idea"] = _apply_spelling_fixes(lesson_data.get("big_idea", ""), fixes)
+    lesson_data["narration_lines"] = [_apply_spelling_fixes(line, fixes) for line in lesson_data["narration_lines"]]
+    lesson_data["scene_descriptions"] = [
+        _apply_spelling_fixes(desc, fixes) for desc in lesson_data["scene_descriptions"]
+    ]
+    return lesson_data
+
+
+def _get_recent_improvement_notes(*, session, limit: int = 25) -> list[str]:
+    rows = session.execute(
+        select(LessonImprovement)
+        .order_by(LessonImprovement.created_at.desc())
+        .limit(limit)
+    ).scalars()
+    return [row.comment_text for row in rows if row.comment_text]
 
 
 def save_lesson(
@@ -194,13 +258,22 @@ def generate_new_lesson(
     settings: Settings,
 ) -> tuple[Lesson, dict, list[str], int, float]:
     client = create_openai_client(settings)
-    lesson_data, lesson_message, lesson_ms, lesson_cost = generate_lesson_plan(question, settings, client)
-    image_results, image_messages, image_ms, image_cost = generate_scene_images(
-        lesson_data["scene_descriptions"], settings, client
+    improvement_notes = _get_recent_improvement_notes(session=session)
+    lesson_data, lesson_message, lesson_ms, lesson_cost = generate_lesson_plan(
+        question, settings, client, improvement_notes=improvement_notes
     )
-    audio_result, audio_message, audio_ms, audio_cost = generate_audio(
-        lesson_data["narration_lines"], settings, client
-    )
+    spelling_fixes = _extract_spelling_fixes(improvement_notes)
+    lesson_data = _apply_spelling_fixes_to_lesson(lesson_data, spelling_fixes)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        image_future = executor.submit(
+            generate_scene_images, lesson_data["scene_descriptions"], settings, client
+        )
+        audio_future = executor.submit(
+            generate_audio, lesson_data["narration_lines"], settings, client
+        )
+        image_results, image_messages, image_ms, image_cost = image_future.result()
+        audio_result, audio_message, audio_ms, audio_cost = audio_future.result()
 
     image_refs = [
         save_media_file(settings.media_storage_path, media_type="image", ext=image.ext, content=image.content)
@@ -217,6 +290,15 @@ def generate_new_lesson(
 
     generation_time_ms = lesson_ms + image_ms + audio_ms
     estimated_api_cost = lesson_cost + image_cost + audio_cost
+    logger.info(
+        "generation_breakdown_ms lesson=%s images=%s audio=%s total=%s notes=%s fixes=%s",
+        lesson_ms,
+        image_ms,
+        audio_ms,
+        generation_time_ms,
+        len(improvement_notes),
+        len(spelling_fixes),
+    )
 
     lesson = save_lesson(
         session=session,
@@ -288,8 +370,11 @@ def handle_question(question: str, session, settings: Settings) -> LessonRespons
     normalized_question = normalize_question(question)
     intent, visual_type = classify_question(question)
     client = create_openai_client(settings)
+    embedding_started = time.perf_counter()
     query_embedding = compute_embedding(normalized_question, settings.openai_embedding_model, client)
+    embedding_ms = int((time.perf_counter() - embedding_started) * 1000)
 
+    semantic_started = time.perf_counter()
     matched_lesson, matched_variant, similarity_score = find_similar_lesson(
         session=session,
         normalized_question=normalized_question,
@@ -298,6 +383,7 @@ def handle_question(question: str, session, settings: Settings) -> LessonRespons
         query_embedding=query_embedding,
         similarity_threshold=settings.similarity_threshold,
     )
+    semantic_ms = int((time.perf_counter() - semantic_started) * 1000)
 
     if should_reuse_lesson(
         lesson=matched_lesson,
@@ -340,6 +426,14 @@ def handle_question(question: str, session, settings: Settings) -> LessonRespons
         reused = False
 
     request_time_ms = int((time.perf_counter() - started) * 1000)
+    logger.info(
+        "request_timing_ms total=%s embedding=%s semantic=%s reused=%s generation=%s",
+        request_time_ms,
+        embedding_ms,
+        semantic_ms,
+        reused,
+        generation_time_ms,
+    )
     session.add(
         LessonRequest(
             lesson_id=lesson.id,
@@ -405,6 +499,49 @@ def record_feedback(
     lesson.updated_at = _utcnow()
     session.commit()
     return feedback
+
+
+def record_improvement(
+    *,
+    session,
+    lesson_id: Optional[int],
+    raw_question: str,
+    category: str,
+    comment_text: str,
+) -> LessonImprovement:
+    improvement = LessonImprovement(
+        lesson_id=lesson_id,
+        raw_question=raw_question,
+        category=(category or "general").strip().lower(),
+        comment_text=comment_text.strip(),
+        status="received",
+    )
+    session.add(improvement)
+    session.commit()
+    return improvement
+
+
+def list_lesson_improvements(
+    *,
+    session,
+    lesson_id: Optional[int],
+    limit: int = 20,
+) -> list[dict]:
+    query = select(LessonImprovement).order_by(LessonImprovement.created_at.desc()).limit(limit)
+    if lesson_id:
+        query = query.where(LessonImprovement.lesson_id == lesson_id)
+
+    rows = session.execute(query).scalars()
+    return [
+        {
+            "id": row.id,
+            "category": row.category,
+            "comment_text": row.comment_text,
+            "status": row.status,
+            "created_at": row.created_at.isoformat(),
+        }
+        for row in rows
+    ]
 
 
 def get_approved_lessons_context(

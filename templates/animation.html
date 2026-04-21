@@ -90,12 +90,65 @@
         <p id="feedback-status" class="subtitle" aria-live="polite"></p>
       </section>
 
+      <section class="ask-panel" aria-labelledby="improvement-heading">
+        <h2 id="improvement-heading">Things to Improve</h2>
+        <p class="subtitle">Share spelling, timing, voice, or visual issues so future lessons improve.</p>
+        <form id="improvement-form">
+          <label for="improvement-category">Category</label>
+          <select id="improvement-category" name="category">
+            <option value="general">General</option>
+            <option value="spelling">Spelling</option>
+            <option value="timing">Timing</option>
+            <option value="visuals">Visuals</option>
+            <option value="voice">Voice</option>
+          </select>
+          <label for="improvement-comment">Comment</label>
+          <textarea
+            id="improvement-comment"
+            name="comment_text"
+            rows="4"
+            placeholder="Example: replace 'ths' with 'this' in scene 2 caption."
+            required
+          ></textarea>
+          <button type="submit">Submit Improvement</button>
+          <p id="improvement-status" class="subtitle" aria-live="polite"></p>
+        </form>
+
+        <div class="improvements-table-wrap">
+          <table class="improvements-table" aria-label="Recent improvement comments">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Category</th>
+                <th>Comment</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="improvements-body">
+              {% for item in improvements %}
+                <tr>
+                  <td>{{ item.created_at }}</td>
+                  <td>{{ item.category }}</td>
+                  <td>{{ item.comment_text }}</td>
+                  <td>{{ item.status }}</td>
+                </tr>
+              {% else %}
+                <tr id="improvements-empty-row">
+                  <td colspan="4">No improvement comments yet.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <a class="back-button" href="{{ url_for('home') }}">Ask another question</a>
     </main>
 
     <script>
       const scenes = {{ scenes|tojson }};
       const lessonId = {{ lesson.id|tojson }};
+      const questionText = {{ question|tojson }};
       const image = document.getElementById("scene-image");
       const caption = document.getElementById("scene-caption");
       const counter = document.getElementById("scene-counter");
@@ -105,6 +158,9 @@
       const audio = document.getElementById("lesson-audio");
       const endMessage = document.getElementById("end-message");
       const feedbackStatus = document.getElementById("feedback-status");
+      const improvementForm = document.getElementById("improvement-form");
+      const improvementStatus = document.getElementById("improvement-status");
+      const improvementsBody = document.getElementById("improvements-body");
       const hasAudio = Boolean(audio);
 
       let currentScene = 0;
@@ -302,6 +358,52 @@
 
       document.getElementById("confusing-button").addEventListener("click", async () => {
         await submitFeedback("confusing");
+      });
+
+      function appendImprovementRow(item) {
+        const emptyRow = document.getElementById("improvements-empty-row");
+        if (emptyRow) {
+          emptyRow.remove();
+        }
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${item.created_at}</td>
+          <td>${item.category}</td>
+          <td>${item.comment_text}</td>
+          <td>${item.status}</td>
+        `;
+        improvementsBody.prepend(row);
+      }
+
+      improvementForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        improvementStatus.textContent = "Saving improvement...";
+
+        const category = document.getElementById("improvement-category").value;
+        const commentText = document.getElementById("improvement-comment").value.trim();
+
+        if (!commentText) {
+          improvementStatus.textContent = "Please add a comment first.";
+          return;
+        }
+
+        try {
+          const data = await postForm("/improvement", {
+            lesson_id: lessonId,
+            question: questionText,
+            category,
+            comment_text: commentText,
+          });
+          if (!data.ok) {
+            improvementStatus.textContent = `Could not save comment: ${data.error || "unknown error"}.`;
+            return;
+          }
+          appendImprovementRow(data);
+          document.getElementById("improvement-comment").value = "";
+          improvementStatus.textContent = "Thanks. We saved this for future quality checks.";
+        } catch (error) {
+          improvementStatus.textContent = "Could not save improvement due to network/server error.";
+        }
       });
 
       buildTimelineStarts();

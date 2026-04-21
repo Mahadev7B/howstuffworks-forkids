@@ -5,7 +5,16 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, url_for
 from sqlalchemy.exc import SQLAlchemyError
 
-from lesson_platform import get_approved_lessons_context, get_session, handle_question, init_db, load_settings, record_feedback
+from lesson_platform import (
+    get_approved_lessons_context,
+    get_session,
+    handle_question,
+    init_db,
+    list_lesson_improvements,
+    load_settings,
+    record_feedback,
+    record_improvement,
+)
 
 
 load_dotenv()
@@ -42,21 +51,29 @@ def animation():
 
     lesson_payload = response.response_payload
     scenes = lesson_payload.get("scenes", [])
+    lesson_id = lesson_payload.get("lesson_id")
     audio = {
         "src": lesson_payload.get("audio_url"),
         "message": None if lesson_payload.get("audio_url") else "Audio is unavailable for this lesson, so captions are guiding the lesson.",
     }
+    improvements = []
+    session = get_session()
+    try:
+        improvements = list_lesson_improvements(session=session, lesson_id=lesson_id, limit=10)
+    finally:
+        session.close()
 
     return render_template(
         "animation.html",
         question=question,
         lesson={
-            "id": lesson_payload.get("lesson_id"),
+            "id": lesson_id,
             "title": lesson_payload.get("title"),
             "big_idea": lesson_payload.get("big_idea"),
         },
         scenes=scenes,
         audio=audio,
+        improvements=improvements,
         error_message=" ".join(response.messages) if response.messages else None,
         reused=response.reused,
         similarity_score=round(response.similarity_score, 3),
@@ -130,6 +147,50 @@ def replay():
             return jsonify({"ok": False, "error": "lesson not found"}), 404
 
         response_payload = {"ok": True, "replay_count": feedback_row.replay_count}
+    finally:
+        session.close()
+
+    return jsonify(response_payload)
+
+
+@app.route("/improvement", methods=["POST"])
+def improvement():
+    lesson_id = request.form.get("lesson_id", type=int)
+    question = request.form.get("question", "").strip()
+    category = request.form.get("category", "").strip().lower() or "general"
+    comment_text = request.form.get("comment_text", "").strip()
+
+    if not comment_text:
+        return jsonify({"ok": False, "error": "comment_text is required"}), 400
+
+    valid_categories = {"general", "spelling", "timing", "visuals", "voice"}
+    if category not in valid_categories:
+        category = "general"
+
+    session = get_session()
+    response_payload = None
+    try:
+        try:
+            improvement_row = record_improvement(
+                session=session,
+                lesson_id=lesson_id,
+                raw_question=question or "unknown",
+                category=category,
+                comment_text=comment_text,
+            )
+        except SQLAlchemyError:
+            logger.exception("Failed to save improvement for lesson_id=%s", lesson_id)
+            session.rollback()
+            return jsonify({"ok": False, "error": "database error while saving improvement"}), 500
+
+        response_payload = {
+            "ok": True,
+            "id": improvement_row.id,
+            "category": improvement_row.category,
+            "comment_text": improvement_row.comment_text,
+            "status": improvement_row.status,
+            "created_at": improvement_row.created_at.isoformat(),
+        }
     finally:
         session.close()
 
