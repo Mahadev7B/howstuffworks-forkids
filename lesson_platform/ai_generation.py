@@ -201,11 +201,12 @@ def generate_scene_images(
                 "Keep it simple, friendly, clear, and safe. Use simple labels. "
                 f"Diagram idea: {add_whiteboard_style(prompt)}"
             )
+            image_size = getattr(settings, "image_size", "512x512")
             try:
                 response = client.images.generate(
                     model=settings.openai_image_model,
                     prompt=image_prompt,
-                    size=settings.image_size,
+                    size=image_size,
                     quality="low",
                     output_format="png",
                     n=1,
@@ -226,7 +227,8 @@ def generate_scene_images(
                 )
 
         ordered_results: list[Optional[GeneratedMedia]] = [None] * len(scene_prompts)
-        with ThreadPoolExecutor(max_workers=min(settings.image_parallelism, len(scene_prompts))) as executor:
+        image_parallelism = max(1, int(getattr(settings, "image_parallelism", 3)))
+        with ThreadPoolExecutor(max_workers=min(image_parallelism, len(scene_prompts))) as executor:
             future_map = {
                 executor.submit(_generate_one, scene_prompt): index
                 for index, scene_prompt in enumerate(scene_prompts)
@@ -260,7 +262,7 @@ def generate_audio(
     client: Optional[OpenAI],
 ) -> tuple[Optional[GeneratedMedia], str, int, float]:
     started = time.perf_counter()
-    if not settings.audio_enabled:
+    if not getattr(settings, "audio_enabled", True):
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return None, "Audio generation is disabled for faster responses.", elapsed_ms, 0.0
 
