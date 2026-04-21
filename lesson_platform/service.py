@@ -243,7 +243,7 @@ def generate_new_lesson(
 
     messages = [msg for msg in [lesson_message, audio_message] if msg]
     messages.extend(image_messages)
-    return lesson, lesson.lesson_json, messages, generation_time_ms, estimated_api_cost
+    return lesson, _build_lesson_payload(lesson), messages, generation_time_ms, estimated_api_cost
 
 
 def _build_lesson_payload(lesson: Lesson) -> dict:
