@@ -76,11 +76,58 @@
       const checkButton = document.getElementById("launch-check-button");
       let modalPuzzleIndex = 0;
 
-      const modalPuzzles = [
-        { title: "Pizza Puzzle 1", question: "A pizza has 8 slices. You eat 3. How many are left?", answer: "5", answerText: "5 slices are left." },
-        { title: "Pizza Puzzle 2", question: "Two pizzas have 12 slices each. You eat 6 slices total. How many are left?", answer: "18", answerText: "18 slices are left." },
-        { title: "Pizza Puzzle 3", question: "You eat 1/2 of a pizza and your friend eats 1/4. How much is eaten total?", answer: "3/4", answerText: "3/4 of the pizza is eaten." }
-      ];
+      function buildModalPuzzles() {
+        const puzzles = [];
+
+        // 40 addition/subtraction pizza-slice puzzles
+        for (let i = 0; i < 40; i += 1) {
+          const totalSlices = 8 + (i % 5) * 2; // 8,10,12,14,16
+          const eaten = 1 + (i % 7);
+          const left = Math.max(1, totalSlices - eaten);
+          puzzles.push({
+            title: `Pizza Slice Puzzle ${puzzles.length + 1}`,
+            question: `A pizza has ${totalSlices} slices. You eat ${eaten} slices. How many are left?`,
+            answer: String(left),
+            answerText: `${left} slices are left.`
+          });
+        }
+
+        // 30 multiplication/grouping pizza puzzles
+        for (let i = 0; i < 30; i += 1) {
+          const pizzas = 2 + (i % 4); // 2..5
+          const slicesEach = 6 + (i % 4) * 2; // 6,8,10,12
+          const eaten = 2 + (i % 9);
+          const total = pizzas * slicesEach;
+          const left = Math.max(1, total - eaten);
+          puzzles.push({
+            title: `Pizza Group Puzzle ${puzzles.length + 1}`,
+            question: `You have ${pizzas} pizzas with ${slicesEach} slices each. You eat ${eaten} slices total. How many slices are left?`,
+            answer: String(left),
+            answerText: `${left} slices are left.`
+          });
+        }
+
+        // 30 fraction puzzles
+        const denominators = [2, 3, 4, 5, 6, 8];
+        for (let i = 0; i < 30; i += 1) {
+          const d = denominators[i % denominators.length];
+          const n1 = 1 + (i % Math.max(1, d - 1));
+          const n2 = 1 + ((i + 1) % Math.max(1, d - 1));
+          const sum = n1 + n2;
+          const cappedSum = Math.min(sum, d); // keep <= whole pizza
+          const answer = `${cappedSum}/${d}`;
+          puzzles.push({
+            title: `Pizza Fraction Puzzle ${puzzles.length + 1}`,
+            question: `You ate ${n1}/${d} of a pizza and your friend ate ${n2}/${d}. How much pizza is eaten in total?`,
+            answer,
+            answerText: `${answer} of the pizza is eaten.`
+          });
+        }
+
+        return puzzles;
+      }
+
+      const modalPuzzles = buildModalPuzzles();
 
       function loadModalPuzzle(index) {
         const puzzle = modalPuzzles[index % modalPuzzles.length];
