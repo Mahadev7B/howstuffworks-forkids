@@ -202,29 +202,44 @@ def generate_scene_images(
                 f"Diagram idea: {add_whiteboard_style(prompt)}"
             )
             image_size = getattr(settings, "image_size", "512x512")
-            try:
-                response = client.images.generate(
-                    model=settings.openai_image_model,
-                    prompt=image_prompt,
-                    size=image_size,
-                    quality="low",
-                    output_format="png",
-                    n=1,
-                )
-                image_base64 = _extract_image_base64(response)
-                return GeneratedMedia(
-                    content=base64.b64decode(image_base64),
-                    ext="png",
-                    media_type="image",
-                )
-            except (OpenAIError, ValueError, AttributeError, TypeError):
-                logger.exception("Image generation failed for one scene; using placeholder.")
-                return GeneratedMedia(
-                    content=_placeholder_svg_bytes(),
-                    ext="svg",
-                    media_type="image",
-                    message="The sketch could not be generated right now, so a placeholder is used.",
-                )
+            image_model = getattr(settings, "openai_image_model", "gpt-image-1")
+            attempt_kwargs = [
+                {"size": image_size, "quality": "low", "output_format": "png"},
+                {"size": image_size, "quality": "low"},
+                {"size": image_size},
+                {"size": "1024x1024"},
+            ]
+
+            last_error: Optional[Exception] = None
+            for extra in attempt_kwargs:
+                try:
+                    response = client.images.generate(
+                        model=image_model,
+                        prompt=image_prompt,
+                        n=1,
+                        **extra,
+                    )
+                    image_base64 = _extract_image_base64(response)
+                    return GeneratedMedia(
+                        content=base64.b64decode(image_base64),
+                        ext="png",
+                        media_type="image",
+                    )
+                except (OpenAIError, ValueError, AttributeError, TypeError) as exc:
+                    last_error = exc
+
+            error_hint = ""
+            if last_error is not None:
+                error_text = str(last_error).strip().splitlines()[0][:180]
+                if error_text:
+                    error_hint = f" ({error_text})"
+            logger.exception("Image generation failed for one scene after retries; using placeholder.")
+            return GeneratedMedia(
+                content=_placeholder_svg_bytes(),
+                ext="svg",
+                media_type="image",
+                message=f"The sketch could not be generated right now, so a placeholder is used.{error_hint}",
+            )
 
         ordered_results: list[Optional[GeneratedMedia]] = [None] * len(scene_prompts)
         image_parallelism = max(1, int(getattr(settings, "image_parallelism", 3)))
@@ -250,8 +265,10 @@ def generate_scene_images(
                 estimated_cost += 0.02
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
+    seen_messages: set[str] = set()
     for image in images:
-        if image.message:
+        if image.message and image.message not in seen_messages:
+            seen_messages.add(image.message)
             messages.append(image.message)
     return images, messages, elapsed_ms, estimated_cost
 
