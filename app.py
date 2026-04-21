@@ -76,10 +76,7 @@ def puzzle():
 @app.route("/animation", methods=["POST"])
 def animation():
     question = request.form.get("question", "").strip()
-    grade = request.form.get("grade", type=int)
-    if grade is None:
-        grade = 3
-    grade = max(1, min(grade, 6))
+    above_second = request.form.get("above_second", "").strip().lower() in {"yes", "true", "1", "on"}
     if not question:
         return redirect(url_for("home"))
 
@@ -113,7 +110,7 @@ def animation():
         },
         scenes=scenes,
         audio=audio,
-        grade=grade,
+        above_second=above_second,
         improvements=improvements,
         error_message=" ".join(response.messages) if response.messages else None,
         reused=response.reused,

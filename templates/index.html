@@ -41,14 +41,10 @@
             autocomplete="off"
             required
           >
-          <label for="grade">Grade level</label>
-          <select id="grade" name="grade">
-            <option value="1">Grade 1</option>
-            <option value="2">Grade 2</option>
-            <option value="3" selected>Grade 3</option>
-            <option value="4">Grade 4</option>
-            <option value="5">Grade 5</option>
-            <option value="6">Grade 6</option>
+          <label for="above_second">Is the kid above 2nd grade?</label>
+          <select id="above_second" name="above_second">
+            <option value="no" selected>No</option>
+            <option value="yes">Yes</option>
           </select>
           <button type="submit">Make a lesson</button>
           <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
@@ -61,7 +57,7 @@
           {% for example in examples %}
             <form action="{{ url_for('animation') }}" method="post" class="question-form">
               <input type="hidden" name="question" value="{{ example }}">
-              <input type="hidden" name="grade" class="grade-hidden" value="3">
+              <input type="hidden" name="above_second" class="above-second-hidden" value="no">
               <button class="example-button" type="submit">{{ example }}</button>
               <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
             </form>
@@ -76,7 +72,7 @@
       const puzzleTitle = document.getElementById("launch-puzzle-title");
       const puzzleQuestion = document.getElementById("launch-puzzle-question");
       const puzzleAnswer = document.getElementById("launch-puzzle-answer");
-      const gradeSelect = document.getElementById("grade");
+      const aboveSecondSelect = document.getElementById("above_second");
       const puzzles = [
         {
           title: "Pizza Planet Puzzle",
@@ -111,9 +107,9 @@
             button.textContent = "Generating...";
           }
 
-          const gradeHidden = form.querySelector(".grade-hidden");
-          if (gradeHidden && gradeSelect) {
-            gradeHidden.value = gradeSelect.value;
+          const aboveSecondHidden = form.querySelector(".above-second-hidden");
+          if (aboveSecondHidden && aboveSecondSelect) {
+            aboveSecondHidden.value = aboveSecondSelect.value;
           }
 
           showLaunchPuzzle();

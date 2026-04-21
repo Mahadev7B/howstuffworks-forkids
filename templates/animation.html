@@ -169,7 +169,7 @@
       const scenes = {{ scenes|tojson }};
       const lessonId = {{ lesson.id|tojson }};
       const questionText = {{ question|tojson }};
-      const studentGrade = {{ grade|tojson }};
+      const isAboveSecond = {{ above_second|tojson }};
       const image = document.getElementById("scene-image");
       const caption = document.getElementById("scene-caption");
       const counter = document.getElementById("scene-counter");
@@ -206,8 +206,8 @@
       let currentPuzzleIndex = 0;
       let puzzleSolved = false;
 
-      function buildPizzaPuzzles(grade) {
-        if (grade <= 2) {
+      function buildPizzaPuzzles(aboveSecond) {
+        if (!aboveSecond) {
           return [
             {
               title: "Pizza Puzzle 1",
@@ -241,7 +241,7 @@
         ];
       }
 
-      const puzzles = buildPizzaPuzzles(studentGrade);
+      const puzzles = buildPizzaPuzzles(isAboveSecond);
 
       function loadPuzzle(index) {
         const puzzle = puzzles[index];
