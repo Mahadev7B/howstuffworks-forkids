@@ -22,13 +22,9 @@
 
       <section class="notice" role="status">
         {% if reused %}
-          Lesson source: reused from similar question (similarity {{ similarity_score }}).
+          Lesson source: reused from a similar question.
         {% else %}
-          Lesson source: freshly generated.
-        {% endif %}
-        Request time: {{ request_time_ms }} ms.
-        {% if generation_time_ms > 0 %}
-          Generation time: {{ generation_time_ms }} ms. Estimated API cost: ${{ '%.4f'|format(estimated_api_cost) }}.
+          Fresh lesson is ready.
         {% endif %}
       </section>
 
@@ -47,7 +43,7 @@
         </div>
 
         <div class="whiteboard-frame">
-          <div id="puzzle-overlay" class="puzzle-overlay">
+          <div id="puzzle-overlay" class="puzzle-overlay{% if autostart %} is-hidden{% endif %}">
             <p class="puzzle-badge">Mini Mission</p>
             <h3 id="puzzle-title">Pizza Puzzle 1</h3>
             <p id="puzzle-question">Loading puzzle...</p>
@@ -65,12 +61,12 @@
           <div class="draw-highlight" aria-hidden="true"></div>
         </div>
 
-        <p id="scene-caption" class="caption lesson-locked">{{ scenes[0].narration }}</p>
+        <p id="scene-caption" class="caption{% if not autostart %} lesson-locked{% endif %}">{{ scenes[0].narration }}</p>
         <p id="end-message" class="end-message" aria-live="polite">
           Thanks for watching! This is the end of the lesson.
         </p>
 
-        <div id="scene-timeline" class="timeline lesson-locked" aria-label="Lesson steps">
+        <div id="scene-timeline" class="timeline{% if not autostart %} lesson-locked{% endif %}" aria-label="Lesson steps">
           {% for scene in scenes %}
             <button
               type="button"
@@ -82,7 +78,7 @@
           {% endfor %}
         </div>
 
-        <div id="lesson-actions" class="player-actions lesson-locked">
+        <div id="lesson-actions" class="player-actions{% if not autostart %} lesson-locked{% endif %}">
           <button id="play-button" type="button">Start lesson</button>
           <button id="pause-button" type="button">Pause</button>
         </div>
@@ -195,7 +191,7 @@
       let currentScene = 0;
       let timerId = null;
       let isPlaying = false;
-      let lessonUnlocked = false;
+      let lessonUnlocked = autoStartMode;
       let replayRecorded = false;
       let timelineStarts = [];
       let totalTimelineSeconds = 0;
@@ -531,8 +527,8 @@
       });
 
       buildTimelineStarts();
-      playButton.disabled = true;
-      pauseButton.disabled = true;
+      playButton.disabled = !autoStartMode;
+      pauseButton.disabled = !autoStartMode;
 
       revealLessonButton.addEventListener("click", () => {
         lessonUnlocked = true;
@@ -555,7 +551,9 @@
         image.classList.add("is-visible");
         playButton.disabled = false;
         pauseButton.disabled = false;
-        startLesson();
+        window.setTimeout(() => {
+          startLesson();
+        }, 60);
       } else {
         loadPuzzle(0);
       }
