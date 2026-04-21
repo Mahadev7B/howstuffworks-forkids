@@ -14,6 +14,18 @@
         <h1>{{ lesson.title }}</h1>
       </section>
 
+      <section class="notice" role="status">
+        {% if reused %}
+          Lesson source: reused from similar question (similarity {{ similarity_score }}).
+        {% else %}
+          Lesson source: freshly generated.
+        {% endif %}
+        Request time: {{ request_time_ms }} ms.
+        {% if generation_time_ms > 0 %}
+          Generation time: {{ generation_time_ms }} ms. Estimated API cost: ${{ '%.4f'|format(estimated_api_cost) }}.
+        {% endif %}
+      </section>
+
       {% if error_message %}
         <section class="notice" role="status">
           {{ error_message }}
@@ -33,11 +45,7 @@
         </div>
 
         <div class="whiteboard-frame">
-          <img
-            id="scene-image"
-            src="{{ scenes[0].image.src }}"
-            alt="Whiteboard sketch for scene 1"
-          >
+          <img id="scene-image" src="{{ scenes[0].image_url }}" alt="Whiteboard sketch for scene 1">
           <div class="draw-highlight" aria-hidden="true"></div>
         </div>
 
@@ -73,11 +81,21 @@
         <p>{{ lesson.big_idea }}</p>
       </section>
 
+      <section class="ask-panel" aria-labelledby="feedback-heading">
+        <h2 id="feedback-heading">Was this lesson helpful?</h2>
+        <div class="player-actions">
+          <button type="button" id="helpful-button">Helpful</button>
+          <button type="button" id="confusing-button">Confusing</button>
+        </div>
+        <p id="feedback-status" class="subtitle" aria-live="polite"></p>
+      </section>
+
       <a class="back-button" href="{{ url_for('home') }}">Ask another question</a>
     </main>
 
     <script>
       const scenes = {{ scenes|tojson }};
+      const lessonId = {{ lesson.id|tojson }};
       const image = document.getElementById("scene-image");
       const caption = document.getElementById("scene-caption");
       const counter = document.getElementById("scene-counter");
@@ -86,10 +104,22 @@
       const pauseButton = document.getElementById("pause-button");
       const audio = document.getElementById("lesson-audio");
       const endMessage = document.getElementById("end-message");
+      const feedbackStatus = document.getElementById("feedback-status");
 
       let currentScene = 0;
       let timerId = null;
       let isPlaying = false;
+      let replayRecorded = false;
+
+      async function postForm(url, values) {
+        const form = new URLSearchParams(values);
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form
+        });
+        return response.json();
+      }
 
       function showScene(index) {
         currentScene = index;
@@ -97,16 +127,15 @@
 
         image.classList.remove("is-visible");
         window.setTimeout(() => {
-          image.src = scene.image.src;
+          image.src = scene.image_url;
           image.alt = `Whiteboard sketch for scene ${scene.number}`;
           caption.textContent = scene.narration;
-        counter.textContent = `Scene ${scene.number} of ${scenes.length}`;
-        endMessage.classList.remove("is-visible");
+          counter.textContent = `Scene ${scene.number} of ${scenes.length}`;
+          endMessage.classList.remove("is-visible");
 
           dots.forEach((dot, dotIndex) => {
             dot.classList.toggle("is-active", dotIndex === currentScene);
           });
-
           image.classList.add("is-visible");
         }, 180);
       }
@@ -115,7 +144,7 @@
         window.clearTimeout(timerId);
         const durationMs = scenes[currentScene].duration * 1000;
 
-        timerId = window.setTimeout(() => {
+        timerId = window.setTimeout(async () => {
           if (currentScene < scenes.length - 1) {
             showScene(currentScene + 1);
             scheduleNextScene();
@@ -123,6 +152,10 @@
             isPlaying = false;
             playButton.textContent = "Play again";
             endMessage.classList.add("is-visible");
+            if (!replayRecorded) {
+              replayRecorded = true;
+              await postForm("/replay", { lesson_id: lessonId });
+            }
           }
         }, durationMs);
       }
@@ -141,7 +174,6 @@
           audio.currentTime = 0;
           audio.play().catch(() => {});
         }
-
         scheduleNextScene();
       }
 
@@ -149,7 +181,6 @@
         isPlaying = false;
         window.clearTimeout(timerId);
         playButton.textContent = "Start lesson";
-
         if (audio) {
           audio.pause();
         }
@@ -168,6 +199,20 @@
           pauseLesson();
           showScene(Number(dot.dataset.sceneIndex));
         });
+      });
+
+      document.getElementById("helpful-button").addEventListener("click", async () => {
+        const data = await postForm("/feedback", { lesson_id: lessonId, feedback_type: "helpful" });
+        feedbackStatus.textContent = data.ok
+          ? `Thanks. Helpful votes: ${data.helpful_votes}.`
+          : "Could not save feedback.";
+      });
+
+      document.getElementById("confusing-button").addEventListener("click", async () => {
+        const data = await postForm("/feedback", { lesson_id: lessonId, feedback_type: "confusing" });
+        feedbackStatus.textContent = data.ok
+          ? `Thanks. Confusing votes: ${data.confusing_votes}.`
+          : "Could not save feedback.";
       });
 
       image.classList.add("is-visible");

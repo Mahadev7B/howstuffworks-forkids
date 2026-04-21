@@ -22,6 +22,7 @@ venv/
 .env
 bash/env/API_KEY
 bash/env/API KEY.txt
+media_store/
 
 # Editor directories and files
 .vscode/*
