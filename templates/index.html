@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body class="space-theme">
+    <div class="space-toys" aria-hidden="true">
+      <span class="toy toy-rocket">🚀</span>
+      <span class="toy toy-planet">🪐</span>
+      <span class="toy toy-earth">🌍</span>
+      <span class="toy toy-star">⭐</span>
+    </div>
     <main class="page">
       <section class="hero">
         <p class="eyebrow">Mission Control for Curious Kids</p>
@@ -46,22 +52,22 @@
 
       <section class="ask-panel" aria-labelledby="puzzle-heading">
         <h2 id="puzzle-heading">Space Puzzle Mission</h2>
-        <p class="subtitle">Pick a puzzle and get a matching picture to solve it.</p>
+        <p class="subtitle">Pick a quick puzzle challenge with pizza or ice cream.</p>
         <div class="example-list">
           <form action="{{ url_for('puzzle') }}" method="post" class="question-form">
             <input type="hidden" name="kind" value="pizza">
             <button class="example-button" type="submit">Pizza Puzzle</button>
-            <p class="loading-message" aria-live="polite">Building your puzzle image...</p>
+            <p class="loading-message" aria-live="polite">Building your puzzle...</p>
           </form>
           <form action="{{ url_for('puzzle') }}" method="post" class="question-form">
             <input type="hidden" name="kind" value="icecream">
             <button class="example-button" type="submit">Ice Cream Puzzle</button>
-            <p class="loading-message" aria-live="polite">Building your puzzle image...</p>
+            <p class="loading-message" aria-live="polite">Building your puzzle...</p>
           </form>
           <form action="{{ url_for('puzzle') }}" method="post" class="question-form">
             <input type="hidden" name="kind" value="random">
             <button class="example-button" type="submit">Surprise Me</button>
-            <p class="loading-message" aria-live="polite">Building your puzzle image...</p>
+            <p class="loading-message" aria-live="polite">Building your puzzle...</p>
           </form>
         </div>
       </section>

@@ -16,8 +16,6 @@ from lesson_platform import (
     record_feedback,
     record_improvement,
 )
-from lesson_platform.ai_generation import create_openai_client, generate_audio, generate_scene_images
-from lesson_platform.media_store import save_media_file
 
 
 load_dotenv()
@@ -54,6 +52,10 @@ def _build_puzzle(kind: str) -> dict:
     return puzzle_bank[kind] | {"kind": kind}
 
 
+def _build_inline_puzzle() -> dict:
+    return _build_puzzle(random.choice(["pizza", "icecream"]))
+
+
 @app.route("/", methods=["GET"])
 def home():
     examples = [
@@ -69,57 +71,9 @@ def puzzle():
     kind = request.form.get("kind", "").strip().lower()
     puzzle_data = _build_puzzle(kind)
 
-    client = create_openai_client(settings)
-    generated_images, messages, _, _ = generate_scene_images(
-        [puzzle_data["image_prompt"]],
-        settings,
-        client,
-    )
-    puzzle_audio, audio_message, _, _ = generate_audio(
-        [
-            f"Space puzzle mission. {puzzle_data['prompt']}",
-            f"Answer: {puzzle_data['answer']}. {puzzle_data['explanation']}",
-        ],
-        settings,
-        client,
-    )
-
-    image_url = None
-    audio_url = None
-    image_ready = False
-    audio_ready = False
-    if generated_images:
-        image = generated_images[0]
-        image_ref = save_media_file(
-            settings.media_storage_path,
-            media_type="image",
-            ext=image.ext,
-            content=image.content,
-        )
-        image_url = f"/media/{image_ref}"
-        image_ready = image.ext == "png"
-
-    if puzzle_audio:
-        audio_ref = save_media_file(
-            settings.media_storage_path,
-            media_type="audio",
-            ext=puzzle_audio.ext,
-            content=puzzle_audio.content,
-        )
-        audio_url = f"/media/{audio_ref}"
-        audio_ready = True
-
-    assets_ready = image_ready and audio_ready
-    if audio_message:
-        messages.append(audio_message)
-
     return render_template(
         "puzzle.html",
         puzzle=puzzle_data,
-        image_url=image_url,
-        audio_url=audio_url,
-        assets_ready=assets_ready,
-        image_message=" ".join(messages) if messages else None,
     )
 
 
@@ -159,6 +113,7 @@ def animation():
         },
         scenes=scenes,
         audio=audio,
+        puzzle=_build_inline_puzzle(),
         improvements=improvements,
         error_message=" ".join(response.messages) if response.messages else None,
         reused=response.reused,

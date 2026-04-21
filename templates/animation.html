@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body class="space-theme">
+    <div class="space-toys" aria-hidden="true">
+      <span class="toy toy-rocket">🚀</span>
+      <span class="toy toy-planet">🪐</span>
+      <span class="toy toy-earth">🌍</span>
+      <span class="toy toy-star">⭐</span>
+    </div>
     <main class="page animation-page">
       <section class="result-header">
         <p class="eyebrow">Whiteboard lesson</p>
@@ -45,16 +51,23 @@
         </div>
 
         <div class="whiteboard-frame">
+          <div id="puzzle-overlay" class="puzzle-overlay">
+            <p class="puzzle-badge">Mini Mission</p>
+            <h3>{{ puzzle.title }}</h3>
+            <p>{{ puzzle.prompt }}</p>
+            <p><strong>Answer:</strong> {{ puzzle.answer }}. {{ puzzle.explanation }}</p>
+            <button id="reveal-lesson-button" type="button">Show Lesson Slides</button>
+          </div>
           <img id="scene-image" src="{{ scenes[0].image_url }}" alt="Whiteboard sketch for scene 1">
           <div class="draw-highlight" aria-hidden="true"></div>
         </div>
 
-        <p id="scene-caption" class="caption">{{ scenes[0].narration }}</p>
+        <p id="scene-caption" class="caption lesson-locked">{{ scenes[0].narration }}</p>
         <p id="end-message" class="end-message" aria-live="polite">
           Thanks for watching! This is the end of the lesson.
         </p>
 
-        <div class="timeline" aria-label="Lesson steps">
+        <div id="scene-timeline" class="timeline lesson-locked" aria-label="Lesson steps">
           {% for scene in scenes %}
             <button
               type="button"
@@ -66,7 +79,7 @@
           {% endfor %}
         </div>
 
-        <div class="player-actions">
+        <div id="lesson-actions" class="player-actions lesson-locked">
           <button id="play-button" type="button">Start lesson</button>
           <button id="pause-button" type="button">Pause</button>
         </div>
@@ -155,6 +168,10 @@
       const dots = document.querySelectorAll(".step-dot");
       const playButton = document.getElementById("play-button");
       const pauseButton = document.getElementById("pause-button");
+      const revealLessonButton = document.getElementById("reveal-lesson-button");
+      const puzzleOverlay = document.getElementById("puzzle-overlay");
+      const sceneTimeline = document.getElementById("scene-timeline");
+      const lessonActions = document.getElementById("lesson-actions");
       const audio = document.getElementById("lesson-audio");
       const endMessage = document.getElementById("end-message");
       const feedbackStatus = document.getElementById("feedback-status");
@@ -166,6 +183,7 @@
       let currentScene = 0;
       let timerId = null;
       let isPlaying = false;
+      let lessonUnlocked = false;
       let replayRecorded = false;
       let timelineStarts = [];
       let totalTimelineSeconds = 0;
@@ -190,6 +208,9 @@
       }
 
       function showScene(index) {
+        if (!lessonUnlocked) {
+          return;
+        }
         currentScene = index;
         const scene = scenes[currentScene];
 
@@ -278,6 +299,9 @@
       }
 
       function startLesson() {
+        if (!lessonUnlocked) {
+          return;
+        }
         isPlaying = true;
         playButton.textContent = "Playing...";
 
@@ -304,6 +328,9 @@
       }
 
       function pauseLesson() {
+        if (!lessonUnlocked) {
+          return;
+        }
         isPlaying = false;
         window.clearTimeout(timerId);
         playButton.textContent = "Resume lesson";
@@ -322,6 +349,9 @@
 
       dots.forEach((dot) => {
         dot.addEventListener("click", () => {
+          if (!lessonUnlocked) {
+            return;
+          }
           pauseLesson();
           const nextIndex = Number(dot.dataset.sceneIndex);
           showScene(nextIndex);
@@ -407,6 +437,19 @@
       });
 
       buildTimelineStarts();
+      playButton.disabled = true;
+      pauseButton.disabled = true;
+
+      revealLessonButton.addEventListener("click", () => {
+        lessonUnlocked = true;
+        puzzleOverlay.classList.add("is-hidden");
+        caption.classList.remove("lesson-locked");
+        sceneTimeline.classList.remove("lesson-locked");
+        lessonActions.classList.remove("lesson-locked");
+        image.classList.add("is-visible");
+        playButton.disabled = false;
+        pauseButton.disabled = false;
+      });
 
       if (hasAudio) {
         audio.addEventListener("loadedmetadata", syncSceneToAudioTime);
@@ -418,7 +461,9 @@
         });
       }
 
-      image.classList.add("is-visible");
+      if (lessonUnlocked) {
+        image.classList.add("is-visible");
+      }
     </script>
   </body>
 </html>

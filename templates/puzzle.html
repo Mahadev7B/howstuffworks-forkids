@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body class="space-theme">
+    <div class="space-toys" aria-hidden="true">
+      <span class="toy toy-rocket">🚀</span>
+      <span class="toy toy-planet">🪐</span>
+      <span class="toy toy-earth">🌍</span>
+      <span class="toy toy-star">⭐</span>
+    </div>
     <main class="page animation-page">
       <section class="result-header">
         <p class="eyebrow">Space Puzzle Mission</p>
@@ -14,29 +20,9 @@
         <p class="subtitle">{{ puzzle.prompt }}</p>
       </section>
 
-      {% if image_message %}
-        <section class="notice" role="status">{{ image_message }}</section>
-      {% endif %}
-
       <section class="animation-stage">
-        <div class="whiteboard-frame puzzle-frame">
-          <img src="{{ image_url }}" alt="Puzzle illustration">
-        </div>
-        {% if audio_url %}
-          <audio controls autoplay src="{{ audio_url }}"></audio>
-        {% endif %}
-        {% if assets_ready %}
-          <p id="puzzle-status" class="caption is-correct">
-            Mission solved. Correct answer: {{ puzzle.answer }}.
-          </p>
-          <p id="puzzle-answer" class="end-message is-visible">
-            {{ puzzle.explanation }}
-          </p>
-        {% else %}
-          <p id="puzzle-status" class="caption">
-            Puzzle assets are still preparing. We show the answer only when image and audio are both ready.
-          </p>
-        {% endif %}
+        <p id="puzzle-status" class="caption">Answer: {{ puzzle.answer }}</p>
+        <p id="puzzle-answer" class="end-message is-visible">{{ puzzle.explanation }}</p>
       </section>
 
       <div class="player-actions">
