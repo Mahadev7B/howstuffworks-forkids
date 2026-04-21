@@ -367,6 +367,7 @@
         }
         isPlaying = true;
         playButton.textContent = "Playing...";
+        showScene(currentScene);
 
         if (currentScene === scenes.length - 1) {
           showScene(0);
@@ -536,7 +537,7 @@
         caption.classList.remove("lesson-locked");
         sceneTimeline.classList.remove("lesson-locked");
         lessonActions.classList.remove("lesson-locked");
-        image.classList.add("is-visible");
+        showScene(0);
         playButton.disabled = false;
         pauseButton.disabled = false;
         startLesson();
@@ -548,7 +549,7 @@
         caption.classList.remove("lesson-locked");
         sceneTimeline.classList.remove("lesson-locked");
         lessonActions.classList.remove("lesson-locked");
-        image.classList.add("is-visible");
+        showScene(0);
         playButton.disabled = false;
         pauseButton.disabled = false;
         window.setTimeout(() => {
