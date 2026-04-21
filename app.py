@@ -79,6 +79,7 @@ def feedback():
     confusing = feedback_type == "confusing"
 
     session = get_session()
+    response_payload = None
     try:
         try:
             feedback_row = record_feedback(
@@ -92,21 +93,21 @@ def feedback():
             logger.exception("Failed to persist feedback for lesson_id=%s", lesson_id)
             session.rollback()
             return jsonify({"ok": False, "error": "database error while saving feedback"}), 500
-    finally:
-        session.close()
 
-    if feedback_row is None:
-        return jsonify({"ok": False, "error": "lesson not found"}), 404
+        if feedback_row is None:
+            return jsonify({"ok": False, "error": "lesson not found"}), 404
 
-    return jsonify(
-        {
+        response_payload = {
             "ok": True,
             "helpful_votes": feedback_row.helpful_votes,
             "confusing_votes": feedback_row.confusing_votes,
             "replay_count": feedback_row.replay_count,
             "watch_completion_rate": feedback_row.watch_completion_rate,
         }
-    )
+    finally:
+        session.close()
+
+    return jsonify(response_payload)
 
 
 @app.route("/replay", methods=["POST"])
@@ -116,6 +117,7 @@ def replay():
         return jsonify({"ok": False, "error": "lesson_id is required"}), 400
 
     session = get_session()
+    response_payload = None
     try:
         try:
             feedback_row = record_feedback(session=session, lesson_id=lesson_id, replay_increment=1)
@@ -123,13 +125,15 @@ def replay():
             logger.exception("Failed to persist replay for lesson_id=%s", lesson_id)
             session.rollback()
             return jsonify({"ok": False, "error": "database error while saving replay"}), 500
+
+        if feedback_row is None:
+            return jsonify({"ok": False, "error": "lesson not found"}), 404
+
+        response_payload = {"ok": True, "replay_count": feedback_row.replay_count}
     finally:
         session.close()
 
-    if feedback_row is None:
-        return jsonify({"ok": False, "error": "lesson not found"}), 404
-
-    return jsonify({"ok": True, "replay_count": feedback_row.replay_count})
+    return jsonify(response_payload)
 
 
 @app.route("/approved-context", methods=["GET"])
