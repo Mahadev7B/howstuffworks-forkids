@@ -473,6 +473,20 @@ button:hover,
   border-right: 2px solid #6c84d8;
 }
 
+.puzzle-answer-form {
+  width: min(620px, 100%);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.puzzle-answer-form input[type="text"] {
+  background: #f5f9ff;
+  color: #1a2560;
+  border-color: #8ca7e5;
+}
+
 .puzzle-badge {
   padding: 6px 12px;
   border-radius: 999px;

@@ -19,7 +19,7 @@
           <p class="puzzle-badge">Mini Mission</p>
           <h2 id="launch-puzzle-title">Pizza Planet Puzzle</h2>
           <p id="launch-puzzle-question">Loading puzzle...</p>
-          <p id="launch-puzzle-answer" class="subtitle">Get ready to slide and check your answer in the lesson.</p>
+          <p id="launch-puzzle-answer" class="subtitle">Get ready to type your answer in the lesson.</p>
         </div>
       </section>
 
@@ -41,11 +41,6 @@
             autocomplete="off"
             required
           >
-          <label for="above_second">Is the kid above 2nd grade?</label>
-          <select id="above_second" name="above_second">
-            <option value="no" selected>No</option>
-            <option value="yes">Yes</option>
-          </select>
           <button type="submit">Make a lesson</button>
           <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
         </form>
@@ -57,7 +52,6 @@
           {% for example in examples %}
             <form action="{{ url_for('animation') }}" method="post" class="question-form">
               <input type="hidden" name="question" value="{{ example }}">
-              <input type="hidden" name="above_second" class="above-second-hidden" value="no">
               <button class="example-button" type="submit">{{ example }}</button>
               <p class="loading-message" aria-live="polite">Generating lesson, images, and narration...</p>
             </form>
@@ -72,7 +66,6 @@
       const puzzleTitle = document.getElementById("launch-puzzle-title");
       const puzzleQuestion = document.getElementById("launch-puzzle-question");
       const puzzleAnswer = document.getElementById("launch-puzzle-answer");
-      const aboveSecondSelect = document.getElementById("above_second");
       const puzzles = [
         {
           title: "Pizza Planet Puzzle",
@@ -88,7 +81,7 @@
         const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
         puzzleTitle.textContent = puzzle.title;
         puzzleQuestion.textContent = puzzle.question;
-        puzzleAnswer.textContent = "Get ready to slide and check your answer in the lesson.";
+        puzzleAnswer.textContent = "Get ready to type your answer in the lesson.";
         puzzleModal.classList.add("is-visible");
       }
 
@@ -105,11 +98,6 @@
           if (button) {
             button.disabled = true;
             button.textContent = "Generating...";
-          }
-
-          const aboveSecondHidden = form.querySelector(".above-second-hidden");
-          if (aboveSecondHidden && aboveSecondSelect) {
-            aboveSecondHidden.value = aboveSecondSelect.value;
           }
 
           showLaunchPuzzle();

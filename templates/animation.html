@@ -51,16 +51,12 @@
             <p class="puzzle-badge">Mini Mission</p>
             <h3 id="puzzle-title">Pizza Puzzle 1</h3>
             <p id="puzzle-question">Loading puzzle...</p>
-            <p id="puzzle-tip">Slide to check the answer, then get the next pizza puzzle.</p>
-            <div class="answer-slider-panel">
-              <p class="answer-label">Slide answer window</p>
-              <div class="answer-window">
-                <div id="answer-mask" class="answer-mask">
-                  <span id="puzzle-answer">Answer appears here.</span>
-                </div>
-              </div>
-              <input id="answer-slider" type="range" min="0" max="100" value="0">
+            <p id="puzzle-tip">Type your answer, check it, then move to the next pizza puzzle.</p>
+            <div class="puzzle-answer-form">
+              <input id="kid-answer-input" type="text" placeholder="Type your answer">
+              <button id="check-answer-button" type="button">Check Answer</button>
             </div>
+            <p id="puzzle-feedback" class="subtitle"></p>
             <p id="puzzle-progress" class="subtitle">Puzzle 1</p>
             <button id="reveal-lesson-button" class="lesson-locked" type="button">Show Lesson and Start</button>
           </div>
@@ -169,7 +165,6 @@
       const scenes = {{ scenes|tojson }};
       const lessonId = {{ lesson.id|tojson }};
       const questionText = {{ question|tojson }};
-      const isAboveSecond = {{ above_second|tojson }};
       const image = document.getElementById("scene-image");
       const caption = document.getElementById("scene-caption");
       const counter = document.getElementById("scene-counter");
@@ -190,11 +185,11 @@
 
       const puzzleTitle = document.getElementById("puzzle-title");
       const puzzleQuestion = document.getElementById("puzzle-question");
-      const puzzleAnswer = document.getElementById("puzzle-answer");
+      const puzzleFeedback = document.getElementById("puzzle-feedback");
       const puzzleProgress = document.getElementById("puzzle-progress");
       const puzzleTip = document.getElementById("puzzle-tip");
-      const answerSlider = document.getElementById("answer-slider");
-      const answerMask = document.getElementById("answer-mask");
+      const kidAnswerInput = document.getElementById("kid-answer-input");
+      const checkAnswerButton = document.getElementById("check-answer-button");
 
       let currentScene = 0;
       let timerId = null;
@@ -206,53 +201,40 @@
       let currentPuzzleIndex = 0;
       let puzzleSolved = false;
 
-      function buildPizzaPuzzles(aboveSecond) {
-        if (!aboveSecond) {
-          return [
-            {
-              title: "Pizza Puzzle 1",
-              question: "A pizza has 6 slices. You eat 2 slices. How many slices are left?",
-              answer: "4 slices are left."
-            },
-            {
-              title: "Pizza Puzzle 2",
-              question: "You have 3 slices and get 2 more slices. How many slices now?",
-              answer: "5 slices now."
-            }
-          ];
-        }
-
+      function buildPizzaPuzzles() {
         return [
           {
             title: "Pizza Puzzle 1",
-            question: "A pizza has 8 equal slices. You ate 2 slices. What fraction is left?",
-            answer: "6/8 is left, which is 3/4."
+            question: "A pizza has 6 slices. You eat 2 slices. How many slices are left?",
+            answer: "4",
+            answerText: "4 slices are left."
           },
           {
             title: "Pizza Puzzle 2",
-            question: "You have 2 pizzas with 8 slices each. 1/4 of all slices were eaten. How many slices are left?",
-            answer: "16 total slices. 1/4 is 4 slices eaten. 12 slices are left."
+            question: "A pizza has 8 slices. You eat 3 slices. How many slices are left?",
+            answer: "5",
+            answerText: "5 slices are left."
           },
           {
             title: "Pizza Puzzle 3",
-            question: "Each day you eat 1/3 of a small pizza. After 3 days, how many whole pizzas is that?",
-            answer: "1 whole pizza."
+            question: "You have 2 pizzas with 8 slices each. You eat 1/4 of all slices. How many slices are left?",
+            answer: "12",
+            answerText: "12 slices are left."
           }
         ];
       }
 
-      const puzzles = buildPizzaPuzzles(isAboveSecond);
+      const puzzles = buildPizzaPuzzles();
 
       function loadPuzzle(index) {
         const puzzle = puzzles[index];
         puzzleSolved = false;
-        answerSlider.value = 0;
-        answerMask.style.width = "0%";
+        kidAnswerInput.value = "";
         puzzleTitle.textContent = puzzle.title;
         puzzleQuestion.textContent = puzzle.question;
-        puzzleAnswer.textContent = puzzle.answer;
+        puzzleFeedback.textContent = "";
         puzzleProgress.textContent = `Puzzle ${index + 1} of ${puzzles.length}`;
-        puzzleTip.textContent = "Slide to check the answer, then get the next pizza puzzle.";
+        puzzleTip.textContent = "Type your answer, check it, then move to the next pizza puzzle.";
       }
 
       function advancePuzzleIfReady() {
@@ -445,11 +427,30 @@
         });
       });
 
-      answerSlider.addEventListener("input", () => {
-        const revealPercent = Number(answerSlider.value);
-        answerMask.style.width = `${revealPercent}%`;
-        if (revealPercent >= 95) {
-          advancePuzzleIfReady();
+      checkAnswerButton.addEventListener("click", () => {
+        if (puzzleSolved) {
+          return;
+        }
+
+        const puzzle = puzzles[currentPuzzleIndex];
+        const userAnswer = kidAnswerInput.value.trim().toLowerCase();
+        if (!userAnswer) {
+          puzzleFeedback.textContent = "Please type an answer first.";
+          return;
+        }
+
+        if (userAnswer === puzzle.answer.toLowerCase()) {
+          puzzleFeedback.textContent = "Correct! Great job. Next pizza puzzle coming up...";
+        } else {
+          puzzleFeedback.textContent = `Nice try! Correct answer: ${puzzle.answerText}. Next pizza puzzle coming up...`;
+        }
+        advancePuzzleIfReady();
+      });
+
+      kidAnswerInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          checkAnswerButton.click();
         }
       });
 
