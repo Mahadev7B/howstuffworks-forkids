@@ -14,6 +14,15 @@
       <span class="toy toy-star">⭐</span>
     </div>
     <main class="page">
+      <section id="launch-puzzle-modal" class="launch-puzzle-modal" aria-live="polite">
+        <div class="launch-puzzle-card">
+          <p class="puzzle-badge">Mini Mission</p>
+          <h2 id="launch-puzzle-title">Pizza Planet Puzzle</h2>
+          <p id="launch-puzzle-question">Loading puzzle...</p>
+          <p id="launch-puzzle-answer" class="subtitle"></p>
+        </div>
+      </section>
+
       <section class="hero">
         <p class="eyebrow">Mission Control for Curious Kids</p>
         <h1>How It Works Kids</h1>
@@ -49,35 +58,38 @@
           {% endfor %}
         </div>
       </section>
-
-      <section class="ask-panel" aria-labelledby="puzzle-heading">
-        <h2 id="puzzle-heading">Space Puzzle Mission</h2>
-        <p class="subtitle">Pick a quick puzzle challenge with pizza or ice cream.</p>
-        <div class="example-list">
-          <form action="{{ url_for('puzzle') }}" method="post" class="question-form">
-            <input type="hidden" name="kind" value="pizza">
-            <button class="example-button" type="submit">Pizza Puzzle</button>
-            <p class="loading-message" aria-live="polite">Building your puzzle...</p>
-          </form>
-          <form action="{{ url_for('puzzle') }}" method="post" class="question-form">
-            <input type="hidden" name="kind" value="icecream">
-            <button class="example-button" type="submit">Ice Cream Puzzle</button>
-            <p class="loading-message" aria-live="polite">Building your puzzle...</p>
-          </form>
-          <form action="{{ url_for('puzzle') }}" method="post" class="question-form">
-            <input type="hidden" name="kind" value="random">
-            <button class="example-button" type="submit">Surprise Me</button>
-            <p class="loading-message" aria-live="polite">Building your puzzle...</p>
-          </form>
-        </div>
-      </section>
     </main>
 
     <script>
       const forms = document.querySelectorAll(".question-form");
+      const puzzleModal = document.getElementById("launch-puzzle-modal");
+      const puzzleTitle = document.getElementById("launch-puzzle-title");
+      const puzzleQuestion = document.getElementById("launch-puzzle-question");
+      const puzzleAnswer = document.getElementById("launch-puzzle-answer");
+      const puzzles = [
+        {
+          title: "Pizza Planet Puzzle",
+          question: "1 pizza has 8 slices. You eat 3 slices. How many are left?",
+          answer: "Answer: 5 slices are left."
+        },
+        {
+          title: "Ice Cream Moon Puzzle",
+          question: "There are 7 scoops. 2 scoops melt. How many scoops stay?",
+          answer: "Answer: 5 scoops stay."
+        }
+      ];
+
+      function showLaunchPuzzle() {
+        const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+        puzzleTitle.textContent = puzzle.title;
+        puzzleQuestion.textContent = puzzle.question;
+        puzzleAnswer.textContent = puzzle.answer;
+        puzzleModal.classList.add("is-visible");
+      }
 
       forms.forEach((form) => {
-        form.addEventListener("submit", () => {
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
           const message = form.querySelector(".loading-message");
           const button = form.querySelector("button");
 
@@ -89,6 +101,11 @@
             button.disabled = true;
             button.textContent = "Generating...";
           }
+
+          showLaunchPuzzle();
+          window.setTimeout(() => {
+            form.submit();
+          }, 900);
         });
       });
     </script>
