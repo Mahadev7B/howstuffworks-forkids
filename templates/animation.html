@@ -118,7 +118,16 @@
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: form
         });
-        return response.json();
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch (error) {
+          payload = { ok: false, error: "Unexpected server response." };
+        }
+        if (!response.ok) {
+          return { ok: false, error: payload.error || "Request failed." };
+        }
+        return payload;
       }
 
       function showScene(index) {
@@ -201,18 +210,33 @@
         });
       });
 
+      async function submitFeedback(feedbackType) {
+        if (!lessonId) {
+          feedbackStatus.textContent = "Feedback is unavailable: missing lesson id.";
+          return;
+        }
+
+        feedbackStatus.textContent = "Saving feedback...";
+        try {
+          const data = await postForm("/feedback", { lesson_id: lessonId, feedback_type: feedbackType });
+          if (data.ok) {
+            feedbackStatus.textContent = feedbackType === "helpful"
+              ? `Thanks. Helpful votes: ${data.helpful_votes}.`
+              : `Thanks. Confusing votes: ${data.confusing_votes}.`;
+            return;
+          }
+          feedbackStatus.textContent = `Could not save feedback: ${data.error || "unknown error"}.`;
+        } catch (error) {
+          feedbackStatus.textContent = "Could not save feedback due to network/server error.";
+        }
+      }
+
       document.getElementById("helpful-button").addEventListener("click", async () => {
-        const data = await postForm("/feedback", { lesson_id: lessonId, feedback_type: "helpful" });
-        feedbackStatus.textContent = data.ok
-          ? `Thanks. Helpful votes: ${data.helpful_votes}.`
-          : "Could not save feedback.";
+        await submitFeedback("helpful");
       });
 
       document.getElementById("confusing-button").addEventListener("click", async () => {
-        const data = await postForm("/feedback", { lesson_id: lessonId, feedback_type: "confusing" });
-        feedbackStatus.textContent = data.ok
-          ? `Thanks. Confusing votes: ${data.confusing_votes}.`
-          : "Could not save feedback.";
+        await submitFeedback("confusing");
       });
 
       image.classList.add("is-visible");

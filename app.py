@@ -3,6 +3,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, url_for
+from sqlalchemy.exc import SQLAlchemyError
 
 from lesson_platform import get_approved_lessons_context, get_session, handle_question, init_db, load_settings, record_feedback
 
@@ -79,13 +80,18 @@ def feedback():
 
     session = get_session()
     try:
-        feedback_row = record_feedback(
-            session=session,
-            lesson_id=lesson_id,
-            helpful=helpful,
-            confusing=confusing,
-            watch_completion_rate=completion_rate,
-        )
+        try:
+            feedback_row = record_feedback(
+                session=session,
+                lesson_id=lesson_id,
+                helpful=helpful,
+                confusing=confusing,
+                watch_completion_rate=completion_rate,
+            )
+        except SQLAlchemyError:
+            logger.exception("Failed to persist feedback for lesson_id=%s", lesson_id)
+            session.rollback()
+            return jsonify({"ok": False, "error": "database error while saving feedback"}), 500
     finally:
         session.close()
 
@@ -111,7 +117,12 @@ def replay():
 
     session = get_session()
     try:
-        feedback_row = record_feedback(session=session, lesson_id=lesson_id, replay_increment=1)
+        try:
+            feedback_row = record_feedback(session=session, lesson_id=lesson_id, replay_increment=1)
+        except SQLAlchemyError:
+            logger.exception("Failed to persist replay for lesson_id=%s", lesson_id)
+            session.rollback()
+            return jsonify({"ok": False, "error": "database error while saving replay"}), 500
     finally:
         session.close()
 
