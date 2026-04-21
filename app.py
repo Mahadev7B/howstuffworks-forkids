@@ -76,6 +76,7 @@ def puzzle():
 @app.route("/animation", methods=["POST"])
 def animation():
     question = request.form.get("question", "").strip()
+    autostart = request.form.get("autostart", "").strip().lower() in {"1", "true", "yes", "on"}
     if not question:
         return redirect(url_for("home"))
 
@@ -109,6 +110,7 @@ def animation():
         },
         scenes=scenes,
         audio=audio,
+        autostart=autostart,
         improvements=improvements,
         error_message=" ".join(response.messages) if response.messages else None,
         reused=response.reused,

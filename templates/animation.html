@@ -165,6 +165,7 @@
       const scenes = {{ scenes|tojson }};
       const lessonId = {{ lesson.id|tojson }};
       const questionText = {{ question|tojson }};
+      const autoStartMode = {{ autostart|tojson }};
       const image = document.getElementById("scene-image");
       const caption = document.getElementById("scene-caption");
       const counter = document.getElementById("scene-counter");
@@ -530,8 +531,6 @@
       });
 
       buildTimelineStarts();
-      loadPuzzle(0);
-
       playButton.disabled = true;
       pauseButton.disabled = true;
 
@@ -546,6 +545,20 @@
         pauseButton.disabled = false;
         startLesson();
       });
+
+      if (autoStartMode) {
+        lessonUnlocked = true;
+        puzzleOverlay.classList.add("is-hidden");
+        caption.classList.remove("lesson-locked");
+        sceneTimeline.classList.remove("lesson-locked");
+        lessonActions.classList.remove("lesson-locked");
+        image.classList.add("is-visible");
+        playButton.disabled = false;
+        pauseButton.disabled = false;
+        startLesson();
+      } else {
+        loadPuzzle(0);
+      }
 
       if (hasAudio) {
         audio.addEventListener("loadedmetadata", syncSceneToAudioTime);

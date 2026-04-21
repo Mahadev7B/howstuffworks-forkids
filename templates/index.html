@@ -141,6 +141,7 @@
           for (const [key, value] of formData.entries()) {
             body.append(key, String(value));
           }
+          body.append("autostart", "1");
 
           try {
             const response = await fetch(form.action, {
