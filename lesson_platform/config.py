@@ -60,7 +60,7 @@ def load_settings() -> Settings:
         media_storage_path=os.getenv("MEDIA_STORAGE_PATH", "media_store").strip(),
         lesson_timeout_seconds=_as_int(os.getenv("LESSON_TIMEOUT_SECONDS"), 180),
         image_parallelism=max(1, _as_int(os.getenv("IMAGE_PARALLELISM"), 3)),
-        max_generated_images=max(1, _as_int(os.getenv("MAX_GENERATED_IMAGES"), 4)),
+        max_generated_images=max(1, _as_int(os.getenv("MAX_GENERATED_IMAGES"), 5)),
         image_size=os.getenv("IMAGE_SIZE", "auto").strip(),
         audio_enabled=_as_bool(os.getenv("AUDIO_ENABLED"), True),
         local_media_only=_as_bool(os.getenv("LOCAL_MEDIA_ONLY"), False),

@@ -94,7 +94,7 @@ Recommended:
 - `MEDIA_STORAGE_PATH` (default `media_store`)
 - `LESSON_TIMEOUT_SECONDS` (default `180`)
 - `IMAGE_PARALLELISM` (default `3`)
-- `MAX_GENERATED_IMAGES` (default `4`) limits paid image calls per lesson to control cost
+- `MAX_GENERATED_IMAGES` (default `5`) limits paid image calls per lesson to control cost
 - `IMAGE_SIZE` (default `auto`; supported: `auto`, `1024x1024`, `1024x1536`, `1536x1024`)
 - `AUDIO_ENABLED` (default `true`)
 - `LOCAL_MEDIA_ONLY` (default `false`) generate all scene sketches in Python with no image API calls
