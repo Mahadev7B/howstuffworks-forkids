@@ -56,29 +56,26 @@ class AIClient:
     api_key: str
 
 
-class GeminiRateLimitError(RuntimeError):
+class ProviderRateLimitError(RuntimeError):
     pass
 
 
 def create_ai_client(settings: Settings) -> Optional[AIClient]:
-    if not settings.gemini_api_key:
+    if not settings.openrouter_api_key:
         return None
-    return AIClient(provider="gemini", api_key=settings.gemini_api_key)
+    return AIClient(provider="openrouter", api_key=settings.openrouter_api_key)
 
 
-def _gemini_generate_text(*, model: str, api_key: str, system_prompt: str, user_prompt: str) -> str:
-    encoded_model = quote(model, safe="")
-    endpoint = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{encoded_model}:generateContent"
-        f"?key={quote(api_key, safe='')}"
-    )
+def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, user_prompt: str) -> str:
+    endpoint = "https://openrouter.ai/api/v1/chat/completions"
     payload = {
-        "system_instruction": {"parts": [{"text": system_prompt}]},
-        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "temperature": 0.4,
-        },
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.4,
     }
     retry_delays = [0.8, 1.6, 3.2]
     body = None
@@ -86,7 +83,10 @@ def _gemini_generate_text(*, model: str, api_key: str, system_prompt: str, user_
         request = Request(
             endpoint,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
             method="POST",
         )
         try:
@@ -104,42 +104,56 @@ def _gemini_generate_text(*, model: str, api_key: str, system_prompt: str, user_
                         pass
                 if attempt_index < len(retry_delays) - 1:
                     logger.warning(
-                        "Gemini rate limited (429). Retrying in %.2fs (attempt %s/%s).",
+                        "OpenRouter rate limited (429). Retrying in %.2fs (attempt %s/%s).",
                         wait_seconds,
                         attempt_index + 1,
                         len(retry_delays),
                     )
                     time.sleep(wait_seconds)
                     continue
-                raise GeminiRateLimitError("Gemini is rate limited (HTTP 429).") from exc
-            raise RuntimeError(f"Gemini request failed: {exc}") from exc
-        except (URLError, TimeoutError) as exc:
-            if attempt_index < len(retry_delays) - 1:
+                raise ProviderRateLimitError("OpenRouter is rate limited (HTTP 429).") from exc
+            if 500 <= exc.code <= 599 and attempt_index < len(retry_delays) - 1:
                 logger.warning(
-                    "Gemini request network issue. Retrying in %.2fs (attempt %s/%s).",
+                    "OpenRouter upstream error %s. Retrying in %.2fs (attempt %s/%s).",
+                    exc.code,
                     delay_seconds,
                     attempt_index + 1,
                     len(retry_delays),
                 )
                 time.sleep(delay_seconds)
                 continue
-            raise RuntimeError(f"Gemini request failed: {exc}") from exc
+            raise RuntimeError(f"OpenRouter request failed: {exc}") from exc
+        except (URLError, TimeoutError) as exc:
+            if attempt_index < len(retry_delays) - 1:
+                logger.warning(
+                    "OpenRouter request network issue. Retrying in %.2fs (attempt %s/%s).",
+                    delay_seconds,
+                    attempt_index + 1,
+                    len(retry_delays),
+                )
+                time.sleep(delay_seconds)
+                continue
+            raise RuntimeError(f"OpenRouter request failed: {exc}") from exc
         except json.JSONDecodeError as exc:
-            raise RuntimeError("Gemini returned invalid JSON response payload.") from exc
+            raise RuntimeError("OpenRouter returned invalid JSON response payload.") from exc
 
     if body is None:
-        raise RuntimeError("Gemini request failed without a response payload.")
+        raise RuntimeError("OpenRouter request failed without a response payload.")
 
     try:
-        candidates = body.get("candidates", [])
-        parts = candidates[0]["content"]["parts"]
-        text_parts = [part.get("text", "") for part in parts if isinstance(part, dict)]
-        output_text = "\n".join(part for part in text_parts if part).strip()
+        choices = body.get("choices", [])
+        message = choices[0].get("message", {})
+        content = message.get("content", "")
+        if isinstance(content, list):
+            text_parts = [part.get("text", "") for part in content if isinstance(part, dict)]
+            output_text = "\n".join(part for part in text_parts if part).strip()
+        else:
+            output_text = str(content).strip()
     except (IndexError, KeyError, TypeError) as exc:
-        raise RuntimeError("Gemini response did not include text content.") from exc
+        raise RuntimeError("OpenRouter response did not include text content.") from exc
 
     if not output_text:
-        raise RuntimeError("Gemini response text was empty.")
+        raise RuntimeError("OpenRouter response text was empty.")
     return output_text
 
 
@@ -203,7 +217,7 @@ def generate_lesson_plan(
     if client is None:
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return lesson, "Add your Gemini API key to generate a live lesson.", elapsed_ms, 0.0
+        return lesson, "Add your OpenRouter API key to generate a live lesson.", elapsed_ms, 0.0
 
     try:
         quality_notes = ""
@@ -220,8 +234,8 @@ def generate_lesson_plan(
             "narration_lines must be exactly 5 strings. scene_descriptions must be exactly 5 strings. "
             "scene_durations must be exactly 5 integers."
         )
-        raw_text = _gemini_generate_text(
-            model=settings.gemini_model,
+        raw_text = _openrouter_generate_text(
+            model=settings.openrouter_model,
             api_key=client.api_key,
             system_prompt=SYSTEM_PROMPT,
             user_prompt=f"Question: {question}{quality_notes}\n\n{schema_hint}",
@@ -229,13 +243,13 @@ def generate_lesson_plan(
         lesson = validate_lesson_plan(AnimationLesson.model_validate_json(raw_text))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return lesson, "", elapsed_ms, 0.004
-    except GeminiRateLimitError:
-        logger.warning("Gemini rate limited; using fallback lesson.")
+    except ProviderRateLimitError:
+        logger.warning("OpenRouter rate limited; using fallback lesson.")
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return (
             lesson,
-            "Gemini is busy right now, so we showed a quick fallback lesson. Please try again in a moment.",
+            "OpenRouter is busy right now, so we showed a quick fallback lesson. Please try again in a moment.",
             elapsed_ms,
             0.0,
         )

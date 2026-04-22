@@ -29,9 +29,9 @@ def _as_bool(value: str, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
-    gemini_api_key: str
-    gemini_model: str
-    gemini_embedding_model: str
+    openrouter_api_key: str
+    openrouter_model: str
+    embedding_model: str
     database_url: str
     similarity_threshold: float
     media_storage_path: str
@@ -45,13 +45,13 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not gemini_api_key:
-        gemini_api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+    openrouter_api_key = os.getenv("OPENROUTER_API", "").strip()
+    if not openrouter_api_key:
+        openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     return Settings(
-        gemini_api_key=gemini_api_key,
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
-        gemini_embedding_model=os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001").strip(),
+        openrouter_api_key=openrouter_api_key,
+        openrouter_model=os.getenv("OPENROUTER_MODEL", "openrouter/free").strip(),
+        embedding_model=os.getenv("EMBEDDING_MODEL", "local-hash").strip(),
         database_url=os.getenv("DATABASE_URL", "").strip(),
         similarity_threshold=_as_float(os.getenv("SIMILARITY_THRESHOLD"), 0.84),
         media_storage_path=os.getenv("MEDIA_STORAGE_PATH", "media_store").strip(),

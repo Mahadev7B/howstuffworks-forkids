@@ -81,12 +81,12 @@ When a question is submitted:
 Required:
 
 - `DATABASE_URL` (PostgreSQL connection string)
-- `GEMINI_API_KEY`
+- `OPENROUTER_API` (or `OPENROUTER_API_KEY`)
 
 Recommended:
 
-- `GEMINI_MODEL` (default `gemini-2.5-flash`)
-- `GEMINI_EMBEDDING_MODEL` (default `gemini-embedding-001`)
+- `OPENROUTER_MODEL` (default `openrouter/free`)
+- `EMBEDDING_MODEL` (default `local-hash`)
 - `SIMILARITY_THRESHOLD` (default `0.84`)
 - `MEDIA_STORAGE_PATH` (default `media_store`)
 - `LESSON_TIMEOUT_SECONDS` (default `180`)
@@ -111,7 +111,7 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-3. Update `.env` with real values, especially `DATABASE_URL` and `GEMINI_API_KEY`.
+3. Update `.env` with real values, especially `DATABASE_URL` and `OPENROUTER_API`.
 
 4. Ensure PostgreSQL exists and the database in `DATABASE_URL` is created.
 
@@ -142,9 +142,9 @@ Use:
 Set Render environment variables:
 
 - `DATABASE_URL`
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL`
-- `GEMINI_EMBEDDING_MODEL`
+- `OPENROUTER_API` (or `OPENROUTER_API_KEY`)
+- `OPENROUTER_MODEL`
+- `EMBEDDING_MODEL`
 - `SIMILARITY_THRESHOLD`
 - `MEDIA_STORAGE_PATH`
 - `IMAGE_PARALLELISM`

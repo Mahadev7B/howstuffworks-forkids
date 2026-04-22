@@ -407,7 +407,7 @@ def handle_question(question: str, session, settings: Settings) -> LessonRespons
     intent, visual_type = classify_question(question)
     client = create_ai_client(settings)
     embedding_started = time.perf_counter()
-    query_embedding = compute_embedding(normalized_question, settings.gemini_embedding_model, None)
+    query_embedding = compute_embedding(normalized_question, settings.embedding_model, None)
     embedding_ms = int((time.perf_counter() - embedding_started) * 1000)
 
     semantic_started = time.perf_counter()
