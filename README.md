@@ -93,6 +93,10 @@ Recommended:
 - `SIMILARITY_THRESHOLD` (default `0.84`)
 - `MEDIA_STORAGE_PATH` (default `media_store`)
 - `LESSON_TIMEOUT_SECONDS` (default `180`)
+- `IMAGE_PARALLELISM` (default `3`)
+- `MAX_GENERATED_IMAGES` (default `4`) limits paid image calls per lesson to control cost
+- `IMAGE_SIZE` (default `512x512`)
+- `AUDIO_ENABLED` (default `true`)
 
 ## Setup Steps
 
@@ -147,6 +151,10 @@ Set Render environment variables:
 - `OPENAI_EMBEDDING_MODEL`
 - `SIMILARITY_THRESHOLD`
 - `MEDIA_STORAGE_PATH`
+- `IMAGE_PARALLELISM`
+- `MAX_GENERATED_IMAGES`
+- `IMAGE_SIZE`
+- `AUDIO_ENABLED`
 
 ## API / Endpoints
 
@@ -167,3 +175,14 @@ A lesson is reused only when:
 4. lesson is not flagged for regeneration.
 
 This prevents false reuse cases like health/safety questions reusing process-explanation lessons.
+
+## Speed Tuning
+
+For faster first response:
+
+1. Increase parallel image generation:
+   - `IMAGE_PARALLELISM=3` (or `4` if stable for your plan)
+2. Use smaller images:
+   - `IMAGE_SIZE=512x512`
+3. Disable audio generation when low latency matters:
+   - `AUDIO_ENABLED=false`

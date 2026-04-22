@@ -76,15 +76,15 @@ def fallback_lesson_plan(question: str) -> dict:
             f"Let us learn about {topic} one step at a time.",
             "First, something starts the process.",
             "Next, the parts begin to work together.",
-            "Then, we can see a change happen.",
-            "Now we know the big idea in a simple way.",
+            "Then we watch the main change happen clearly.",
+            "Now we can see the result and big idea.",
         ],
         "scene_descriptions": [
             f"black and white pencil sketch of a child looking at {topic}, simple labels, worksheet style",
             "black and white pencil sketch of a starting point with one arrow, simple educational diagram",
             "black and white pencil sketch of small parts working together, clean lines, simple labels",
-            "black and white pencil sketch of a visible change with arrows, worksheet style diagram",
-            "black and white pencil sketch of a happy child pointing to the big idea, simple labels",
+            "black and white pencil sketch of the key change in action, arrows and simple labels",
+            "black and white pencil sketch of final result and big idea, worksheet style diagram",
         ],
         "scene_durations": [6, 6, 6, 6, 6],
         "big_idea": "Small steps help us understand how things work.",
@@ -195,6 +195,8 @@ def generate_scene_images(
                 )
             )
     else:
+        max_generated_images = max(1, int(getattr(settings, "max_generated_images", 4)))
+
         def _generate_one(prompt: str) -> GeneratedMedia:
             image_prompt = (
                 "Draw a black and white pencil sketch educational diagram for kids ages 6 to 10. "
@@ -203,12 +205,7 @@ def generate_scene_images(
             )
             image_size = getattr(settings, "image_size", "512x512")
             image_model = getattr(settings, "openai_image_model", "gpt-image-1")
-            attempt_kwargs = [
-                {"size": image_size, "quality": "low", "output_format": "png"},
-                {"size": image_size, "quality": "low"},
-                {"size": image_size},
-                {"size": "1024x1024"},
-            ]
+            attempt_kwargs = [{"size": image_size}]
 
             last_error: Optional[Exception] = None
             for extra in attempt_kwargs:
@@ -243,14 +240,28 @@ def generate_scene_images(
 
         ordered_results: list[Optional[GeneratedMedia]] = [None] * len(scene_prompts)
         image_parallelism = max(1, int(getattr(settings, "image_parallelism", 3)))
-        with ThreadPoolExecutor(max_workers=min(image_parallelism, len(scene_prompts))) as executor:
+        payable_count = min(len(scene_prompts), max_generated_images)
+        with ThreadPoolExecutor(max_workers=min(image_parallelism, payable_count)) as executor:
             future_map = {
                 executor.submit(_generate_one, scene_prompt): index
-                for index, scene_prompt in enumerate(scene_prompts)
+                for index, scene_prompt in enumerate(scene_prompts[:payable_count])
             }
             for future in as_completed(future_map):
                 index = future_map[future]
                 ordered_results[index] = future.result()
+
+        if len(scene_prompts) > payable_count:
+            budget_message = (
+                "Using low-cost sketch mode: some scenes reuse a simple placeholder to keep total API cost under budget."
+            )
+            messages.append(budget_message)
+            for index in range(payable_count, len(scene_prompts)):
+                ordered_results[index] = GeneratedMedia(
+                    content=_placeholder_svg_bytes(),
+                    ext="svg",
+                    media_type="image",
+                    message=budget_message,
+                )
 
         for result in ordered_results:
             if result is None:

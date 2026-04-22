@@ -16,6 +16,17 @@ def _as_int(value: str, default: int) -> int:
         return default
 
 
+def _as_bool(value: str, default: bool) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 @dataclass(frozen=True)
 class Settings:
     openai_api_key: str
@@ -28,6 +39,10 @@ class Settings:
     similarity_threshold: float
     media_storage_path: str
     lesson_timeout_seconds: int
+    image_parallelism: int
+    max_generated_images: int
+    image_size: str
+    audio_enabled: bool
 
 
 def load_settings() -> Settings:
@@ -42,4 +57,8 @@ def load_settings() -> Settings:
         similarity_threshold=_as_float(os.getenv("SIMILARITY_THRESHOLD"), 0.84),
         media_storage_path=os.getenv("MEDIA_STORAGE_PATH", "media_store").strip(),
         lesson_timeout_seconds=_as_int(os.getenv("LESSON_TIMEOUT_SECONDS"), 180),
+        image_parallelism=max(1, _as_int(os.getenv("IMAGE_PARALLELISM"), 3)),
+        max_generated_images=max(1, _as_int(os.getenv("MAX_GENERATED_IMAGES"), 4)),
+        image_size=os.getenv("IMAGE_SIZE", "512x512").strip(),
+        audio_enabled=_as_bool(os.getenv("AUDIO_ENABLED"), True),
     )
