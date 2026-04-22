@@ -309,6 +309,16 @@ def _generate_local_tts_audio(narration_lines: List[str]) -> tuple[Optional[Gene
         return None, "Local Python TTS is not available on this server yet (install/configure pyttsx3 + speech engine)."
 
 
+def _image_attempt_sizes(settings: Settings) -> List[str]:
+    supported_sizes = {"1024x1024", "1024x1536", "1536x1024", "auto"}
+    configured_size = str(getattr(settings, "image_size", "auto") or "auto").strip().lower()
+    attempts: List[str] = []
+    if configured_size in supported_sizes:
+        attempts.append(configured_size)
+    attempts.extend(size for size in ["auto", "1024x1024"] if size not in attempts)
+    return attempts
+
+
 def generate_scene_images(
     scene_prompts: List[str],
     settings: Settings,
@@ -349,9 +359,8 @@ def generate_scene_images(
                 "Keep it simple, friendly, clear, and safe. Use simple labels. "
                 f"Diagram idea: {add_whiteboard_style(prompt)}"
             )
-            image_size = getattr(settings, "image_size", "512x512")
             image_model = getattr(settings, "openai_image_model", "gpt-image-1")
-            attempt_kwargs = [{"size": image_size}]
+            attempt_kwargs = [{"size": size} for size in _image_attempt_sizes(settings)]
 
             last_error: Optional[Exception] = None
             for extra in attempt_kwargs:

@@ -95,7 +95,7 @@ Recommended:
 - `LESSON_TIMEOUT_SECONDS` (default `180`)
 - `IMAGE_PARALLELISM` (default `3`)
 - `MAX_GENERATED_IMAGES` (default `4`) limits paid image calls per lesson to control cost
-- `IMAGE_SIZE` (default `512x512`)
+- `IMAGE_SIZE` (default `auto`; supported: `auto`, `1024x1024`, `1024x1536`, `1536x1024`)
 - `AUDIO_ENABLED` (default `true`)
 - `LOCAL_MEDIA_ONLY` (default `false`) generate all scene sketches in Python with no image API calls
 - `LOCAL_TTS_ENABLED` (default `false`) attempt narration via local Python TTS (`pyttsx3`)
@@ -187,6 +187,6 @@ For faster first response:
 1. Increase parallel image generation:
    - `IMAGE_PARALLELISM=3` (or `4` if stable for your plan)
 2. Use smaller images:
-   - `IMAGE_SIZE=512x512`
+   - `IMAGE_SIZE=auto`
 3. Disable audio generation when low latency matters:
    - `AUDIO_ENABLED=false`
