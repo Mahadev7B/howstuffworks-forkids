@@ -81,15 +81,12 @@ When a question is submitted:
 Required:
 
 - `DATABASE_URL` (PostgreSQL connection string)
-- `OPENAI_API_KEY`
+- `GEMINI_API_KEY`
 
 Recommended:
 
-- `OPENAI_MODEL` (default `gpt-4.1-mini`)
-- `OPENAI_IMAGE_MODEL` (default `gpt-image-1`)
-- `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`)
-- `OPENAI_TTS_VOICE` (default `coral`)
-- `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`)
+- `GEMINI_MODEL` (default `gemini-2.5-flash`)
+- `GEMINI_EMBEDDING_MODEL` (default `gemini-embedding-001`)
 - `SIMILARITY_THRESHOLD` (default `0.84`)
 - `MEDIA_STORAGE_PATH` (default `media_store`)
 - `LESSON_TIMEOUT_SECONDS` (default `180`)
@@ -114,7 +111,7 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-3. Update `.env` with real values, especially `DATABASE_URL` and `OPENAI_API_KEY`.
+3. Update `.env` with real values, especially `DATABASE_URL` and `GEMINI_API_KEY`.
 
 4. Ensure PostgreSQL exists and the database in `DATABASE_URL` is created.
 
@@ -145,12 +142,9 @@ Use:
 Set Render environment variables:
 
 - `DATABASE_URL`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `OPENAI_IMAGE_MODEL`
-- `OPENAI_TTS_MODEL`
-- `OPENAI_TTS_VOICE`
-- `OPENAI_EMBEDDING_MODEL`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL`
+- `GEMINI_EMBEDDING_MODEL`
 - `SIMILARITY_THRESHOLD`
 - `MEDIA_STORAGE_PATH`
 - `IMAGE_PARALLELISM`

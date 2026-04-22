@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from .ai_generation import create_openai_client, generate_audio, generate_lesson_plan, generate_scene_images
+from .ai_generation import create_ai_client, generate_audio, generate_lesson_plan, generate_scene_images
 from .config import Settings
 from .media_store import save_media_file
 from .models import (
@@ -293,7 +293,7 @@ def generate_new_lesson(
     session,
     settings: Settings,
 ) -> tuple[Lesson, dict, list[str], int, float]:
-    client = create_openai_client(settings)
+    client = create_ai_client(settings)
     improvement_notes = _get_recent_improvement_notes(session=session)
     lesson_data, lesson_message, lesson_ms, lesson_cost = generate_lesson_plan(
         question, settings, client, improvement_notes=improvement_notes
@@ -405,9 +405,9 @@ def handle_question(question: str, session, settings: Settings) -> LessonRespons
     started = time.perf_counter()
     normalized_question = normalize_question(question)
     intent, visual_type = classify_question(question)
-    client = create_openai_client(settings)
+    client = create_ai_client(settings)
     embedding_started = time.perf_counter()
-    query_embedding = compute_embedding(normalized_question, settings.openai_embedding_model, client)
+    query_embedding = compute_embedding(normalized_question, settings.gemini_embedding_model, None)
     embedding_ms = int((time.perf_counter() - embedding_started) * 1000)
 
     semantic_started = time.perf_counter()

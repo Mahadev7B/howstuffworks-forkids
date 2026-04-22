@@ -1,14 +1,16 @@
-import base64
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 import html
+import json
 import logging
 import os
 import tempfile
 import time
 from dataclasses import dataclass
 from typing import List, Optional
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
-from openai import OpenAI, OpenAIError
 from pydantic import BaseModel, Field
 
 from .config import Settings
@@ -48,10 +50,57 @@ class GeneratedMedia:
     message: Optional[str] = None
 
 
-def create_openai_client(settings: Settings) -> Optional[OpenAI]:
-    if not settings.openai_api_key:
+@dataclass(frozen=True)
+class AIClient:
+    provider: str
+    api_key: str
+
+
+def create_ai_client(settings: Settings) -> Optional[AIClient]:
+    if not settings.gemini_api_key:
         return None
-    return OpenAI(api_key=settings.openai_api_key)
+    return AIClient(provider="gemini", api_key=settings.gemini_api_key)
+
+
+def _gemini_generate_text(*, model: str, api_key: str, system_prompt: str, user_prompt: str) -> str:
+    encoded_model = quote(model, safe="")
+    endpoint = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{encoded_model}:generateContent"
+        f"?key={quote(api_key, safe='')}"
+    )
+    payload = {
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "temperature": 0.4,
+        },
+    }
+    request = Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=45) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError) as exc:
+        raise RuntimeError(f"Gemini request failed: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Gemini returned invalid JSON response payload.") from exc
+
+    try:
+        candidates = body.get("candidates", [])
+        parts = candidates[0]["content"]["parts"]
+        text_parts = [part.get("text", "") for part in parts if isinstance(part, dict)]
+        output_text = "\n".join(part for part in text_parts if part).strip()
+    except (IndexError, KeyError, TypeError) as exc:
+        raise RuntimeError("Gemini response did not include text content.") from exc
+
+    if not output_text:
+        raise RuntimeError("Gemini response text was empty.")
+    return output_text
 
 
 def add_whiteboard_style(prompt: str) -> str:
@@ -107,14 +156,14 @@ def validate_lesson_plan(lesson: AnimationLesson) -> dict:
 def generate_lesson_plan(
     question: str,
     settings: Settings,
-    client: Optional[OpenAI],
+    client: Optional[AIClient],
     improvement_notes: Optional[List[str]] = None,
 ) -> tuple[dict, str, int, float]:
     started = time.perf_counter()
     if client is None:
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return lesson, "Add your OpenAI API key to generate a live lesson.", elapsed_ms, 0.0
+        return lesson, "Add your Gemini API key to generate a live lesson.", elapsed_ms, 0.0
 
     try:
         quality_notes = ""
@@ -126,20 +175,21 @@ def generate_lesson_plan(
                 + "\nApply spelling corrections and avoid repeated mistakes."
             )
 
-        response = client.responses.parse(
-            model=settings.openai_model,
-            input=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Question: {question}{quality_notes}"},
-            ],
-            text_format=AnimationLesson,
+        schema_hint = (
+            "Return only JSON with keys: title, narration_lines, scene_descriptions, scene_durations, big_idea. "
+            "narration_lines must be exactly 5 strings. scene_descriptions must be exactly 5 strings. "
+            "scene_durations must be exactly 5 integers."
         )
-        if response.output_parsed is None:
-            raise ValueError("The model did not return a structured lesson.")
-        lesson = validate_lesson_plan(response.output_parsed)
+        raw_text = _gemini_generate_text(
+            model=settings.gemini_model,
+            api_key=client.api_key,
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=f"Question: {question}{quality_notes}\n\n{schema_hint}",
+        )
+        lesson = validate_lesson_plan(AnimationLesson.model_validate_json(raw_text))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return lesson, "", elapsed_ms, 0.004
-    except (OpenAIError, ValueError, AttributeError, TypeError):
+    except (RuntimeError, ValueError, AttributeError, TypeError):
         logger.exception("Lesson generation failed; using fallback lesson.")
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
@@ -149,17 +199,6 @@ def generate_lesson_plan(
             elapsed_ms,
             0.0,
         )
-
-
-def _extract_image_base64(response) -> str:
-    if not response.data:
-        raise ValueError("Image API response had no data items.")
-    first_image = response.data[0]
-    image_base64 = getattr(first_image, "b64_json", None)
-    if not image_base64:
-        raise ValueError("Image API response did not include b64_json.")
-    return image_base64
-
 
 def _placeholder_svg_bytes() -> bytes:
     svg = """
@@ -309,20 +348,10 @@ def _generate_local_tts_audio(narration_lines: List[str]) -> tuple[Optional[Gene
         return None, "Local Python TTS is not available on this server yet (install/configure pyttsx3 + speech engine)."
 
 
-def _image_attempt_sizes(settings: Settings) -> List[str]:
-    supported_sizes = {"1024x1024", "1024x1536", "1536x1024", "auto"}
-    configured_size = str(getattr(settings, "image_size", "auto") or "auto").strip().lower()
-    attempts: List[str] = []
-    if configured_size in supported_sizes:
-        attempts.append(configured_size)
-    attempts.extend(size for size in ["auto", "1024x1024"] if size not in attempts)
-    return attempts
-
-
 def generate_scene_images(
     scene_prompts: List[str],
     settings: Settings,
-    client: Optional[OpenAI],
+    client: Optional[AIClient],
 ) -> tuple[List[GeneratedMedia], List[str], int, float]:
     started = time.perf_counter()
     images: List[GeneratedMedia] = []
@@ -330,14 +359,19 @@ def generate_scene_images(
     estimated_cost = 0.0
 
     local_media_only = bool(getattr(settings, "local_media_only", False))
-    if local_media_only:
+    if local_media_only or (client is not None and client.provider == "gemini"):
+        message = (
+            "Local Python sketch mode is on: scenes are generated without image API calls."
+            if local_media_only
+            else "Gemini text mode is active, so scenes are rendered with local sketch graphics."
+        )
         for index, scene_prompt in enumerate(scene_prompts, start=1):
             images.append(
                 GeneratedMedia(
                     content=_local_scene_svg_bytes(scene_prompt, index),
                     ext="svg",
                     media_type="image",
-                    message="Local Python sketch mode is on: scenes are generated without image API calls.",
+                    message=message,
                 )
             )
     elif client is None:
@@ -347,88 +381,9 @@ def generate_scene_images(
                     content=_placeholder_svg_bytes(),
                     ext="svg",
                     media_type="image",
-                    message="Add your OpenAI API key to generate sketch images.",
+                    message="Add your Gemini API key to generate lesson content.",
                 )
             )
-    else:
-        max_generated_images = max(1, int(getattr(settings, "max_generated_images", 4)))
-
-        def _generate_one(prompt: str) -> GeneratedMedia:
-            image_prompt = (
-                "Draw a black and white pencil sketch educational diagram for kids ages 6 to 10. "
-                "Keep it simple, friendly, clear, and safe. Use simple labels. "
-                f"Diagram idea: {add_whiteboard_style(prompt)}"
-            )
-            image_model = getattr(settings, "openai_image_model", "gpt-image-1")
-            attempt_kwargs = [{"size": size} for size in _image_attempt_sizes(settings)]
-
-            last_error: Optional[Exception] = None
-            for extra in attempt_kwargs:
-                try:
-                    response = client.images.generate(
-                        model=image_model,
-                        prompt=image_prompt,
-                        n=1,
-                        **extra,
-                    )
-                    image_base64 = _extract_image_base64(response)
-                    return GeneratedMedia(
-                        content=base64.b64decode(image_base64),
-                        ext="png",
-                        media_type="image",
-                    )
-                except (OpenAIError, ValueError, AttributeError, TypeError) as exc:
-                    last_error = exc
-
-            error_hint = ""
-            if last_error is not None:
-                error_text = str(last_error).strip().splitlines()[0][:180]
-                if error_text:
-                    error_hint = f" ({error_text})"
-            logger.exception("Image generation failed for one scene after retries; using placeholder.")
-            return GeneratedMedia(
-                content=_placeholder_svg_bytes(),
-                ext="svg",
-                media_type="image",
-                message=f"The sketch could not be generated right now, so a placeholder is used.{error_hint}",
-            )
-
-        ordered_results: list[Optional[GeneratedMedia]] = [None] * len(scene_prompts)
-        image_parallelism = max(1, int(getattr(settings, "image_parallelism", 3)))
-        payable_count = min(len(scene_prompts), max_generated_images)
-        with ThreadPoolExecutor(max_workers=min(image_parallelism, payable_count)) as executor:
-            future_map = {
-                executor.submit(_generate_one, scene_prompt): index
-                for index, scene_prompt in enumerate(scene_prompts[:payable_count])
-            }
-            for future in as_completed(future_map):
-                index = future_map[future]
-                ordered_results[index] = future.result()
-
-        if len(scene_prompts) > payable_count:
-            budget_message = (
-                "Using low-cost sketch mode: some scenes reuse a simple placeholder to keep total API cost under budget."
-            )
-            messages.append(budget_message)
-            for index in range(payable_count, len(scene_prompts)):
-                ordered_results[index] = GeneratedMedia(
-                    content=_placeholder_svg_bytes(),
-                    ext="svg",
-                    media_type="image",
-                    message=budget_message,
-                )
-
-        for result in ordered_results:
-            if result is None:
-                result = GeneratedMedia(
-                    content=_placeholder_svg_bytes(),
-                    ext="svg",
-                    media_type="image",
-                    message="Image generation timed out; using placeholder.",
-                )
-            images.append(result)
-            if result.ext == "png":
-                estimated_cost += 0.02
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     seen_messages: set[str] = set()
@@ -442,7 +397,7 @@ def generate_scene_images(
 def generate_audio(
     narration_lines: List[str],
     settings: Settings,
-    client: Optional[OpenAI],
+    client: Optional[AIClient],
 ) -> tuple[Optional[GeneratedMedia], str, int, float]:
     started = time.perf_counter()
     if not getattr(settings, "audio_enabled", True):
@@ -461,27 +416,7 @@ def generate_audio(
 
     if client is None:
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return None, "Add your OpenAI API key to generate narration audio.", elapsed_ms, 0.0
+        return None, "Add your Gemini API key to generate narration audio.", elapsed_ms, 0.0
 
-    try:
-        response = client.audio.speech.create(
-            model=settings.openai_tts_model,
-            voice=settings.openai_tts_voice,
-            input=" ".join(narration_lines),
-            instructions=(
-                "Speak in a warm, friendly teacher voice for kids. "
-                "Use a calm pace and cheerful tone."
-            ),
-            response_format="mp3",
-        )
-        audio_bytes = getattr(response, "content", None)
-        if audio_bytes is None and hasattr(response, "read"):
-            audio_bytes = response.read()
-        if not audio_bytes:
-            raise ValueError("TTS response did not include audio bytes.")
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return GeneratedMedia(content=audio_bytes, ext="mp3", media_type="audio"), "", elapsed_ms, 0.003
-    except (OpenAIError, AttributeError, ValueError, TypeError):
-        logger.exception("Audio generation failed; lesson will run with captions only.")
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return None, "Audio could not be generated right now, so captions will guide the lesson.", elapsed_ms, 0.0
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    return None, "Gemini narration audio is not enabled yet, so captions will guide the lesson.", elapsed_ms, 0.0

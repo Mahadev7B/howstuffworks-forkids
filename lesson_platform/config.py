@@ -29,12 +29,9 @@ def _as_bool(value: str, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
-    openai_api_key: str
-    openai_model: str
-    openai_image_model: str
-    openai_tts_model: str
-    openai_tts_voice: str
-    openai_embedding_model: str
+    gemini_api_key: str
+    gemini_model: str
+    gemini_embedding_model: str
     database_url: str
     similarity_threshold: float
     media_storage_path: str
@@ -49,12 +46,9 @@ class Settings:
 
 def load_settings() -> Settings:
     return Settings(
-        openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
-        openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip(),
-        openai_image_model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1").strip(),
-        openai_tts_model=os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts").strip(),
-        openai_tts_voice=os.getenv("OPENAI_TTS_VOICE", "coral").strip(),
-        openai_embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small").strip(),
+        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
+        gemini_embedding_model=os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001").strip(),
         database_url=os.getenv("DATABASE_URL", "").strip(),
         similarity_threshold=_as_float(os.getenv("SIMILARITY_THRESHOLD"), 0.84),
         media_storage_path=os.getenv("MEDIA_STORAGE_PATH", "media_store").strip(),

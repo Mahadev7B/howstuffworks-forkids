@@ -1,8 +1,10 @@
 import hashlib
+import json
 import math
 from typing import Iterable, List, Optional
-
-from openai import OpenAI, OpenAIError
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 from .models import Lesson, QuestionVariant
 
@@ -41,20 +43,44 @@ def cosine_similarity(vec_a: Iterable[float], vec_b: Iterable[float]) -> float:
 def compute_embedding(
     text: str,
     embedding_model: str,
-    openai_client: Optional[OpenAI],
+    ai_client: Optional[object],
 ) -> List[float]:
     if not text:
         return _token_hash_vector(text)
 
-    if openai_client is None:
+    if ai_client is None:
         return _token_hash_vector(text)
 
     try:
-        response = openai_client.embeddings.create(model=embedding_model, input=text)
-        if not response.data:
+        provider = getattr(ai_client, "provider", "")
+        api_key = getattr(ai_client, "api_key", "")
+        if provider != "gemini" or not api_key:
             return _token_hash_vector(text)
-        return list(response.data[0].embedding)
-    except (OpenAIError, AttributeError, TypeError, ValueError):
+
+        encoded_model = quote(embedding_model, safe="")
+        endpoint = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{encoded_model}:embedContent"
+            f"?key={quote(api_key, safe='')}"
+        )
+        payload = {
+            "content": {
+                "parts": [{"text": text}],
+            }
+        }
+        request = Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(request, timeout=30) as response:
+            body = json.loads(response.read().decode("utf-8"))
+
+        values = body.get("embedding", {}).get("values", [])
+        if not values:
+            return _token_hash_vector(text)
+        return [float(value) for value in values]
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
         return _token_hash_vector(text)
 
 
