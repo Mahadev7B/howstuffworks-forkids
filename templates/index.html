@@ -14,24 +14,10 @@
       <span class="toy toy-star">&#11088;</span>
     </div>
     <main class="page">
-      <section id="launch-puzzle-modal" class="launch-puzzle-modal" aria-live="polite">
-        <div class="launch-puzzle-card">
-          <p class="puzzle-badge">Mini Mission</p>
-          <h2 id="launch-puzzle-title">Pizza Puzzle</h2>
-          <p id="launch-puzzle-question">Loading puzzle...</p>
-          <div class="puzzle-answer-form">
-            <input id="launch-puzzle-input" type="text" placeholder="Type your answer">
-            <button id="launch-check-button" type="button">Check</button>
-          </div>
-          <p id="launch-puzzle-feedback" class="subtitle"></p>
-          <p id="launch-puzzle-status" class="subtitle">Lesson is preparing in the background...</p>
-        </div>
-      </section>
-
       <section class="hero">
         <p class="eyebrow">Mission Control for Curious Kids</p>
         <h1>How It Works Kids</h1>
-        <p class="subtitle">Launch lessons, explore planets, and solve tasty space puzzles.</p>
+        <p class="subtitle">Launch quick lessons and explore how things work.</p>
       </section>
 
       <section class="ask-panel" aria-labelledby="ask-heading">
@@ -67,101 +53,6 @@
 
     <script>
       const forms = document.querySelectorAll(".question-form");
-      const puzzleModal = document.getElementById("launch-puzzle-modal");
-      const puzzleTitle = document.getElementById("launch-puzzle-title");
-      const puzzleQuestion = document.getElementById("launch-puzzle-question");
-      const puzzleInput = document.getElementById("launch-puzzle-input");
-      const puzzleFeedback = document.getElementById("launch-puzzle-feedback");
-      const puzzleStatus = document.getElementById("launch-puzzle-status");
-      const checkButton = document.getElementById("launch-check-button");
-      let modalPuzzleIndex = 0;
-
-      function buildModalPuzzles() {
-        const puzzles = [];
-
-        // 40 addition/subtraction pizza-slice puzzles
-        for (let i = 0; i < 40; i += 1) {
-          const totalSlices = 8 + (i % 5) * 2; // 8,10,12,14,16
-          const eaten = 1 + (i % 7);
-          const left = Math.max(1, totalSlices - eaten);
-          puzzles.push({
-            title: `Pizza Slice Puzzle ${puzzles.length + 1}`,
-            question: `A pizza has ${totalSlices} slices. You eat ${eaten} slices. How many are left?`,
-            answer: String(left),
-            answerText: `${left} slices are left.`
-          });
-        }
-
-        // 30 multiplication/grouping pizza puzzles
-        for (let i = 0; i < 30; i += 1) {
-          const pizzas = 2 + (i % 4); // 2..5
-          const slicesEach = 6 + (i % 4) * 2; // 6,8,10,12
-          const eaten = 2 + (i % 9);
-          const total = pizzas * slicesEach;
-          const left = Math.max(1, total - eaten);
-          puzzles.push({
-            title: `Pizza Group Puzzle ${puzzles.length + 1}`,
-            question: `You have ${pizzas} pizzas with ${slicesEach} slices each. You eat ${eaten} slices total. How many slices are left?`,
-            answer: String(left),
-            answerText: `${left} slices are left.`
-          });
-        }
-
-        // 30 fraction puzzles
-        const denominators = [2, 3, 4, 5, 6, 8];
-        for (let i = 0; i < 30; i += 1) {
-          const d = denominators[i % denominators.length];
-          const n1 = 1 + (i % Math.max(1, d - 1));
-          const n2 = 1 + ((i + 1) % Math.max(1, d - 1));
-          const sum = n1 + n2;
-          const cappedSum = Math.min(sum, d); // keep <= whole pizza
-          const answer = `${cappedSum}/${d}`;
-          puzzles.push({
-            title: `Pizza Fraction Puzzle ${puzzles.length + 1}`,
-            question: `You ate ${n1}/${d} of a pizza and your friend ate ${n2}/${d}. How much pizza is eaten in total?`,
-            answer,
-            answerText: `${answer} of the pizza is eaten.`
-          });
-        }
-
-        return puzzles;
-      }
-
-      const modalPuzzles = buildModalPuzzles();
-
-      function loadModalPuzzle(index) {
-        const puzzle = modalPuzzles[index % modalPuzzles.length];
-        puzzleTitle.textContent = puzzle.title;
-        puzzleQuestion.textContent = puzzle.question;
-        puzzleFeedback.textContent = "";
-        puzzleInput.value = "";
-      }
-
-      function checkModalPuzzle() {
-        const puzzle = modalPuzzles[modalPuzzleIndex % modalPuzzles.length];
-        const answer = puzzleInput.value.trim().toLowerCase();
-        if (!answer) {
-          puzzleFeedback.textContent = "Type an answer first.";
-          return;
-        }
-        if (answer === puzzle.answer.toLowerCase()) {
-          puzzleFeedback.textContent = "Correct! Nice job. Next puzzle...";
-        } else {
-          puzzleFeedback.textContent = `Nice try! Correct answer: ${puzzle.answerText} Next puzzle...`;
-        }
-        modalPuzzleIndex += 1;
-        window.setTimeout(() => {
-          loadModalPuzzle(modalPuzzleIndex);
-        }, 700);
-      }
-
-      checkButton.addEventListener("click", checkModalPuzzle);
-      puzzleInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          checkModalPuzzle();
-        }
-      });
 
       forms.forEach((form) => {
         form.addEventListener("submit", async (event) => {
@@ -175,13 +66,9 @@
           }
 
           if (message) {
-            message.classList.remove("is-visible");
+            message.classList.add("is-visible");
+            message.textContent = "Making your lesson...";
           }
-
-          modalPuzzleIndex = 0;
-          loadModalPuzzle(modalPuzzleIndex);
-          puzzleStatus.textContent = "Lesson is preparing in the background...";
-          puzzleModal.classList.add("is-visible");
 
           const formData = new FormData(form);
           const body = new URLSearchParams();
@@ -201,7 +88,9 @@
             document.write(html);
             document.close();
           } catch (error) {
-            puzzleStatus.textContent = "Network issue. Retrying with normal submit...";
+            if (message) {
+              message.textContent = "Network issue. Retrying...";
+            }
             form.submit();
           }
         });

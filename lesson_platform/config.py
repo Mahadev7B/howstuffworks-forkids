@@ -45,8 +45,11 @@ class Settings:
 
 
 def load_settings() -> Settings:
+    gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not gemini_api_key:
+        gemini_api_key = os.getenv("GOOGLE_API_KEY", "").strip()
     return Settings(
-        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_api_key=gemini_api_key,
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
         gemini_embedding_model=os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001").strip(),
         database_url=os.getenv("DATABASE_URL", "").strip(),

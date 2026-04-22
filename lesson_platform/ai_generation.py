@@ -245,8 +245,8 @@ def _pick_scene_badge(prompt: str) -> str:
         return "PLANT POWER"
     if any(word in text for word in ("rocket", "space", "planet", "moon")):
         return "SPACE SCIENCE"
-    if any(word in text for word in ("pizza", "fraction", "slice", "divide")):
-        return "PIZZA MATH"
+    if any(word in text for word in ("fraction", "slice", "divide")):
+        return "FRACTION LAB"
     if any(word in text for word in ("force", "push", "pull", "motion")):
         return "MOTION LAB"
     return "LEARNING LAB"
@@ -276,7 +276,7 @@ def _scene_icon_svg(prompt: str) -> str:
   <path d="M390 360 L430 350 L410 390 Z" fill="none" stroke="#2b3b6a" stroke-width="8"/>
   <path d="M250 380 L220 400 L250 410 Z" fill="none" stroke="#2b3b6a" stroke-width="8"/>
 """
-    if any(word in text for word in ("pizza", "fraction", "slice", "divide")):
+    if any(word in text for word in ("fraction", "slice", "divide")):
         return """
   <circle cx="290" cy="320" r="115" fill="none" stroke="#2b3b6a" stroke-width="10"/>
   <line x1="290" y1="205" x2="290" y2="435" stroke="#2b3b6a" stroke-width="8"/>
@@ -358,32 +358,14 @@ def generate_scene_images(
     messages: List[str] = []
     estimated_cost = 0.0
 
-    local_media_only = bool(getattr(settings, "local_media_only", False))
-    if local_media_only or (client is not None and client.provider == "gemini"):
-        message = (
-            "Local Python sketch mode is on: scenes are generated without image API calls."
-            if local_media_only
-            else "Gemini text mode is active, so scenes are rendered with local sketch graphics."
+    for index, scene_prompt in enumerate(scene_prompts, start=1):
+        images.append(
+            GeneratedMedia(
+                content=_local_scene_svg_bytes(scene_prompt, index),
+                ext="svg",
+                media_type="image",
+            )
         )
-        for index, scene_prompt in enumerate(scene_prompts, start=1):
-            images.append(
-                GeneratedMedia(
-                    content=_local_scene_svg_bytes(scene_prompt, index),
-                    ext="svg",
-                    media_type="image",
-                    message=message,
-                )
-            )
-    elif client is None:
-        for _ in scene_prompts:
-            images.append(
-                GeneratedMedia(
-                    content=_placeholder_svg_bytes(),
-                    ext="svg",
-                    media_type="image",
-                    message="Add your Gemini API key to generate lesson content.",
-                )
-            )
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     seen_messages: set[str] = set()
@@ -414,9 +396,5 @@ def generate_audio(
             return media, "", elapsed_ms, 0.0
         return None, local_message, elapsed_ms, 0.0
 
-    if client is None:
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return None, "Add your Gemini API key to generate narration audio.", elapsed_ms, 0.0
-
     elapsed_ms = int((time.perf_counter() - started) * 1000)
-    return None, "Gemini narration audio is not enabled yet, so captions will guide the lesson.", elapsed_ms, 0.0
+    return None, "", elapsed_ms, 0.0

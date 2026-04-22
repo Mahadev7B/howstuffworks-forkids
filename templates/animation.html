@@ -24,7 +24,7 @@
         {% if reused %}
           Lesson source: reused from a similar question.
         {% else %}
-          Fresh lesson is ready.
+          Lesson is ready.
         {% endif %}
       </section>
 
@@ -39,7 +39,7 @@
       <section class="animation-stage" aria-label="Animated lesson player">
         <div class="stage-top">
           <p id="scene-counter">Scene 1 of {{ scenes|length }}</p>
-          <p class="ai-note">AI voice may be used for narration.</p>
+          <p class="ai-note">Captions guide each scene.</p>
         </div>
 
         <div class="whiteboard-frame">
@@ -140,7 +140,7 @@
         </div>
       </section>
 
-      <a class="back-button" href="{{ url_for('home') }}">Ask another question</a>
+      <a class="back-button" href="{{ url_for('home') }}">Try another question</a>
     </main>
 
     <script>

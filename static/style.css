@@ -48,38 +48,6 @@ main {
   z-index: 1;
 }
 
-.launch-puzzle-modal {
-  position: fixed;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(8, 18, 52, 0.72);
-  z-index: 25;
-}
-
-.launch-puzzle-modal.is-visible {
-  display: flex;
-}
-
-.launch-puzzle-card {
-  width: min(640px, 100%);
-  padding: 22px;
-  border-radius: 18px;
-  text-align: center;
-  background: linear-gradient(180deg, #fff5dc 0%, #f9d7ff 50%, #d8ecff 100%);
-  border: 3px solid #a8c5ff;
-  box-shadow: 0 18px 32px rgba(6, 10, 35, 0.4);
-}
-
-.launch-puzzle-card h2 {
-  color: #2b2f83;
-}
-
-.launch-puzzle-card p {
-  color: #1a2560;
-}
 
 .space-toys {
   position: fixed;
@@ -406,35 +374,6 @@ button:hover,
   animation: drawSweep 4s ease-in-out infinite;
 }
 
-.puzzle-overlay {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 10px;
-  padding: 20px;
-  color: #1a2560;
-  text-align: center;
-  background: linear-gradient(180deg, #fff5dc 0%, #f9d7ff 50%, #d8ecff 100%);
-  z-index: 3;
-}
-
-.puzzle-overlay.is-hidden {
-  display: none;
-}
-
-.puzzle-overlay h3 {
-  margin: 0;
-  color: #2b2f83;
-  font-size: 30px;
-}
-
-.puzzle-overlay p {
-  margin: 0;
-  max-width: 760px;
-  font-size: 20px;
-}
 
 .answer-slider-panel {
   width: min(620px, 100%);
@@ -473,30 +412,6 @@ button:hover,
   border-right: 2px solid #6c84d8;
 }
 
-.puzzle-answer-form {
-  width: min(620px, 100%);
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-}
-
-.puzzle-answer-form input[type="text"] {
-  background: #f5f9ff;
-  color: #1a2560;
-  border-color: #8ca7e5;
-}
-
-.puzzle-badge {
-  padding: 6px 12px;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, #ff8f5e, #ff52be 55%, #7059ff);
-}
 
 .lesson-locked {
   display: none;
@@ -611,20 +526,6 @@ button:hover,
 .improvements-table th {
   color: #ffeea8;
   background: rgba(42, 65, 148, 0.92);
-}
-
-.puzzle-frame {
-  max-width: 920px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.puzzle-options {
-  margin-top: 22px;
-}
-
-.puzzle-choice {
-  font-size: 24px;
 }
 
 .caption.is-correct {
