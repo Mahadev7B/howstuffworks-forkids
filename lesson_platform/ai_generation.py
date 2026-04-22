@@ -56,6 +56,10 @@ class AIClient:
     api_key: str
 
 
+class GeminiRateLimitError(RuntimeError):
+    pass
+
+
 def create_ai_client(settings: Settings) -> Optional[AIClient]:
     if not settings.gemini_api_key:
         return None
@@ -76,19 +80,55 @@ def _gemini_generate_text(*, model: str, api_key: str, system_prompt: str, user_
             "temperature": 0.4,
         },
     }
-    request = Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urlopen(request, timeout=45) as response:
-            body = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError) as exc:
-        raise RuntimeError(f"Gemini request failed: {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("Gemini returned invalid JSON response payload.") from exc
+    retry_delays = [0.8, 1.6, 3.2]
+    body = None
+    for attempt_index, delay_seconds in enumerate(retry_delays):
+        request = Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=45) as response:
+                body = json.loads(response.read().decode("utf-8"))
+                break
+        except HTTPError as exc:
+            if exc.code == 429:
+                retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                wait_seconds = delay_seconds
+                if retry_after:
+                    try:
+                        wait_seconds = max(wait_seconds, float(retry_after))
+                    except (TypeError, ValueError):
+                        pass
+                if attempt_index < len(retry_delays) - 1:
+                    logger.warning(
+                        "Gemini rate limited (429). Retrying in %.2fs (attempt %s/%s).",
+                        wait_seconds,
+                        attempt_index + 1,
+                        len(retry_delays),
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+                raise GeminiRateLimitError("Gemini is rate limited (HTTP 429).") from exc
+            raise RuntimeError(f"Gemini request failed: {exc}") from exc
+        except (URLError, TimeoutError) as exc:
+            if attempt_index < len(retry_delays) - 1:
+                logger.warning(
+                    "Gemini request network issue. Retrying in %.2fs (attempt %s/%s).",
+                    delay_seconds,
+                    attempt_index + 1,
+                    len(retry_delays),
+                )
+                time.sleep(delay_seconds)
+                continue
+            raise RuntimeError(f"Gemini request failed: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Gemini returned invalid JSON response payload.") from exc
+
+    if body is None:
+        raise RuntimeError("Gemini request failed without a response payload.")
 
     try:
         candidates = body.get("candidates", [])
@@ -189,6 +229,16 @@ def generate_lesson_plan(
         lesson = validate_lesson_plan(AnimationLesson.model_validate_json(raw_text))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return lesson, "", elapsed_ms, 0.004
+    except GeminiRateLimitError:
+        logger.warning("Gemini rate limited; using fallback lesson.")
+        lesson = fallback_lesson_plan(question)
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        return (
+            lesson,
+            "Gemini is busy right now, so we showed a quick fallback lesson. Please try again in a moment.",
+            elapsed_ms,
+            0.0,
+        )
     except (RuntimeError, ValueError, AttributeError, TypeError):
         logger.exception("Lesson generation failed; using fallback lesson.")
         lesson = fallback_lesson_plan(question)
