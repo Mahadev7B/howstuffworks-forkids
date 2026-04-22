@@ -43,6 +43,8 @@ class Settings:
     max_generated_images: int
     image_size: str
     audio_enabled: bool
+    local_media_only: bool
+    local_tts_enabled: bool
 
 
 def load_settings() -> Settings:
@@ -61,4 +63,6 @@ def load_settings() -> Settings:
         max_generated_images=max(1, _as_int(os.getenv("MAX_GENERATED_IMAGES"), 4)),
         image_size=os.getenv("IMAGE_SIZE", "512x512").strip(),
         audio_enabled=_as_bool(os.getenv("AUDIO_ENABLED"), True),
+        local_media_only=_as_bool(os.getenv("LOCAL_MEDIA_ONLY"), False),
+        local_tts_enabled=_as_bool(os.getenv("LOCAL_TTS_ENABLED"), False),
     )

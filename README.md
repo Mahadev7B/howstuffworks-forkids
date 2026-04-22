@@ -97,6 +97,8 @@ Recommended:
 - `MAX_GENERATED_IMAGES` (default `4`) limits paid image calls per lesson to control cost
 - `IMAGE_SIZE` (default `512x512`)
 - `AUDIO_ENABLED` (default `true`)
+- `LOCAL_MEDIA_ONLY` (default `false`) generate all scene sketches in Python with no image API calls
+- `LOCAL_TTS_ENABLED` (default `false`) attempt narration via local Python TTS (`pyttsx3`)
 
 ## Setup Steps
 
@@ -155,6 +157,8 @@ Set Render environment variables:
 - `MAX_GENERATED_IMAGES`
 - `IMAGE_SIZE`
 - `AUDIO_ENABLED`
+- `LOCAL_MEDIA_ONLY`
+- `LOCAL_TTS_ENABLED`
 
 ## API / Endpoints
 
