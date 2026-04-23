@@ -68,18 +68,21 @@ def create_ai_client(settings: Settings) -> Optional[AIClient]:
 
 def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, user_prompt: str) -> str:
     endpoint = "https://openrouter.ai/api/v1/chat/completions"
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.4,
-    }
     retry_delays = [0.8, 1.6, 3.2]
+    include_response_format = True
     body = None
     for attempt_index, delay_seconds in enumerate(retry_delays):
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.4,
+        }
+        if include_response_format:
+            payload["response_format"] = {"type": "json_object"}
+
         request = Request(
             endpoint,
             data=json.dumps(payload).encode("utf-8"),
@@ -94,6 +97,20 @@ def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, u
                 body = json.loads(response.read().decode("utf-8"))
                 break
         except HTTPError as exc:
+            error_body = ""
+            try:
+                error_body = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                error_body = ""
+
+            if exc.code == 400 and include_response_format:
+                include_response_format = False
+                logger.warning(
+                    "OpenRouter rejected JSON response_format; retrying without response_format (attempt %s/%s).",
+                    attempt_index + 1,
+                    len(retry_delays),
+                )
+                continue
             if exc.code == 429:
                 retry_after = exc.headers.get("Retry-After") if exc.headers else None
                 wait_seconds = delay_seconds
@@ -122,7 +139,12 @@ def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, u
                 )
                 time.sleep(delay_seconds)
                 continue
-            raise RuntimeError(f"OpenRouter request failed: {exc}") from exc
+            error_hint = ""
+            if error_body:
+                first_line = error_body.strip().splitlines()[0][:220]
+                if first_line:
+                    error_hint = f" | {first_line}"
+            raise RuntimeError(f"OpenRouter request failed: {exc}{error_hint}") from exc
         except (URLError, TimeoutError) as exc:
             if attempt_index < len(retry_delays) - 1:
                 logger.warning(
