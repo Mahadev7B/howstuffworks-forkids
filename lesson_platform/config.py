@@ -38,8 +38,8 @@ def _clean_env(value: str, default: str = "") -> str:
 
 @dataclass(frozen=True)
 class Settings:
-    openrouter_api_key: str
-    openrouter_model: str
+    openai_api_key: str
+    openai_model: str
     embedding_model: str
     database_url: str
     similarity_threshold: float
@@ -54,12 +54,12 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    openrouter_api_key = _clean_env(os.getenv("OPENROUTER_API", ""))
-    if not openrouter_api_key:
-        openrouter_api_key = _clean_env(os.getenv("OPENROUTER_API_KEY", ""))
+    openai_api_key = _clean_env(os.getenv("OPENAI_API_KEY", ""))
+    if not openai_api_key:
+        openai_api_key = _clean_env(os.getenv("OPENAI_API", ""))
     return Settings(
-        openrouter_api_key=openrouter_api_key,
-        openrouter_model=_clean_env(os.getenv("OPENROUTER_MODEL", "openrouter/free"), "openrouter/free"),
+        openai_api_key=openai_api_key,
+        openai_model=_clean_env(os.getenv("OPENAI_MODEL", "gpt-4.1-mini"), "gpt-4.1-mini"),
         embedding_model=_clean_env(os.getenv("EMBEDDING_MODEL", "local-hash"), "local-hash"),
         database_url=_clean_env(os.getenv("DATABASE_URL", "")),
         similarity_threshold=_as_float(os.getenv("SIMILARITY_THRESHOLD"), 0.84),

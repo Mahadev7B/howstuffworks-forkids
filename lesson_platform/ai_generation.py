@@ -8,7 +8,6 @@ import time
 from dataclasses import dataclass
 from typing import List, Optional
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
@@ -61,13 +60,13 @@ class ProviderRateLimitError(RuntimeError):
 
 
 def create_ai_client(settings: Settings) -> Optional[AIClient]:
-    if not settings.openrouter_api_key:
+    if not settings.openai_api_key:
         return None
-    return AIClient(provider="openrouter", api_key=settings.openrouter_api_key)
+    return AIClient(provider="openai", api_key=settings.openai_api_key)
 
 
-def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, user_prompt: str) -> str:
-    endpoint = "https://openrouter.ai/api/v1/chat/completions"
+def _openai_generate_text(*, model: str, api_key: str, system_prompt: str, user_prompt: str) -> str:
+    endpoint = "https://api.openai.com/v1/chat/completions"
     retry_delays = [0.8, 1.6, 3.2]
     include_response_format = True
     body = None
@@ -106,7 +105,7 @@ def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, u
             if exc.code == 400 and include_response_format:
                 include_response_format = False
                 logger.warning(
-                    "OpenRouter rejected JSON response_format; retrying without response_format (attempt %s/%s).",
+                    "OpenAI rejected JSON response_format; retrying without response_format (attempt %s/%s).",
                     attempt_index + 1,
                     len(retry_delays),
                 )
@@ -121,17 +120,17 @@ def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, u
                         pass
                 if attempt_index < len(retry_delays) - 1:
                     logger.warning(
-                        "OpenRouter rate limited (429). Retrying in %.2fs (attempt %s/%s).",
+                        "OpenAI rate limited (429). Retrying in %.2fs (attempt %s/%s).",
                         wait_seconds,
                         attempt_index + 1,
                         len(retry_delays),
                     )
                     time.sleep(wait_seconds)
                     continue
-                raise ProviderRateLimitError("OpenRouter is rate limited (HTTP 429).") from exc
+                raise ProviderRateLimitError("OpenAI is rate limited (HTTP 429).") from exc
             if 500 <= exc.code <= 599 and attempt_index < len(retry_delays) - 1:
                 logger.warning(
-                    "OpenRouter upstream error %s. Retrying in %.2fs (attempt %s/%s).",
+                    "OpenAI upstream error %s. Retrying in %.2fs (attempt %s/%s).",
                     exc.code,
                     delay_seconds,
                     attempt_index + 1,
@@ -144,23 +143,23 @@ def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, u
                 first_line = error_body.strip().splitlines()[0][:220]
                 if first_line:
                     error_hint = f" | {first_line}"
-            raise RuntimeError(f"OpenRouter request failed: {exc}{error_hint}") from exc
+            raise RuntimeError(f"OpenAI request failed: {exc}{error_hint}") from exc
         except (URLError, TimeoutError) as exc:
             if attempt_index < len(retry_delays) - 1:
                 logger.warning(
-                    "OpenRouter request network issue. Retrying in %.2fs (attempt %s/%s).",
+                    "OpenAI request network issue. Retrying in %.2fs (attempt %s/%s).",
                     delay_seconds,
                     attempt_index + 1,
                     len(retry_delays),
                 )
                 time.sleep(delay_seconds)
                 continue
-            raise RuntimeError(f"OpenRouter request failed: {exc}") from exc
+            raise RuntimeError(f"OpenAI request failed: {exc}") from exc
         except json.JSONDecodeError as exc:
-            raise RuntimeError("OpenRouter returned invalid JSON response payload.") from exc
+            raise RuntimeError("OpenAI returned invalid JSON response payload.") from exc
 
     if body is None:
-        raise RuntimeError("OpenRouter request failed without a response payload.")
+        raise RuntimeError("OpenAI request failed without a response payload.")
 
     try:
         choices = body.get("choices", [])
@@ -172,10 +171,10 @@ def _openrouter_generate_text(*, model: str, api_key: str, system_prompt: str, u
         else:
             output_text = str(content).strip()
     except (IndexError, KeyError, TypeError) as exc:
-        raise RuntimeError("OpenRouter response did not include text content.") from exc
+        raise RuntimeError("OpenAI response did not include text content.") from exc
 
     if not output_text:
-        raise RuntimeError("OpenRouter response text was empty.")
+        raise RuntimeError("OpenAI response text was empty.")
     return output_text
 
 
@@ -239,10 +238,10 @@ def generate_lesson_plan(
     if client is None:
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return lesson, "Add your OpenRouter API key to generate a live lesson.", elapsed_ms, 0.0
+        return lesson, "Add your OpenAI API key to generate a live lesson.", elapsed_ms, 0.0
 
     def _generate_with_model(model_name: str) -> str:
-        return _openrouter_generate_text(
+        return _openai_generate_text(
             model=model_name,
             api_key=client.api_key,
             system_prompt=SYSTEM_PROMPT,
@@ -264,33 +263,33 @@ def generate_lesson_plan(
             "narration_lines must be exactly 5 strings. scene_descriptions must be exactly 5 strings. "
             "scene_durations must be exactly 5 integers."
         )
-        raw_text = _generate_with_model(settings.openrouter_model)
+        raw_text = _generate_with_model(settings.openai_model)
         lesson = validate_lesson_plan(AnimationLesson.model_validate_json(raw_text))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return lesson, "", elapsed_ms, 0.004
     except ProviderRateLimitError:
-        logger.warning("OpenRouter rate limited; using fallback lesson.")
+        logger.warning("OpenAI rate limited; using fallback lesson.")
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return (
             lesson,
-            "OpenRouter is busy right now, so we showed a quick fallback lesson. Please try again in a moment.",
+            "OpenAI is busy right now, so we showed a quick fallback lesson. Please try again in a moment.",
             elapsed_ms,
             0.0,
         )
     except RuntimeError as exc:
-        if "HTTP Error 400" in str(exc) and settings.openrouter_model != "openrouter/free":
+        if "HTTP Error 400" in str(exc) and settings.openai_model != "gpt-4.1-mini":
             try:
                 logger.warning(
-                    "OpenRouter model '%s' rejected request; retrying with openrouter/free.",
-                    settings.openrouter_model,
+                    "OpenAI model '%s' rejected request; retrying with gpt-4.1-mini.",
+                    settings.openai_model,
                 )
-                raw_text = _generate_with_model("openrouter/free")
+                raw_text = _generate_with_model("gpt-4.1-mini")
                 lesson = validate_lesson_plan(AnimationLesson.model_validate_json(raw_text))
                 elapsed_ms = int((time.perf_counter() - started) * 1000)
                 return lesson, "", elapsed_ms, 0.004
             except (RuntimeError, ValueError, AttributeError, TypeError):
-                logger.exception("OpenRouter fallback model also failed; using fallback lesson.")
+                logger.exception("OpenAI fallback model also failed; using fallback lesson.")
         logger.exception("Lesson generation failed; using fallback lesson.")
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)

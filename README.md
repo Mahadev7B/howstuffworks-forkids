@@ -81,11 +81,11 @@ When a question is submitted:
 Required:
 
 - `DATABASE_URL` (PostgreSQL connection string)
-- `OPENROUTER_API` (or `OPENROUTER_API_KEY`)
+- `OPENAI_API_KEY` (or `OPENAI_API`)
 
 Recommended:
 
-- `OPENROUTER_MODEL` (default `openrouter/free`)
+- `OPENAI_MODEL` (default `gpt-4.1-mini`)
 - `EMBEDDING_MODEL` (default `local-hash`)
 - `SIMILARITY_THRESHOLD` (default `0.84`)
 - `MEDIA_STORAGE_PATH` (default `media_store`)
@@ -111,7 +111,7 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-3. Update `.env` with real values, especially `DATABASE_URL` and `OPENROUTER_API`.
+3. Update `.env` with real values, especially `DATABASE_URL` and `OPENAI_API_KEY`.
 
 4. Ensure PostgreSQL exists and the database in `DATABASE_URL` is created.
 
@@ -142,8 +142,8 @@ Use:
 Set Render environment variables:
 
 - `DATABASE_URL`
-- `OPENROUTER_API` (or `OPENROUTER_API_KEY`)
-- `OPENROUTER_MODEL`
+- `OPENAI_API_KEY` (or `OPENAI_API`)
+- `OPENAI_MODEL`
 - `EMBEDDING_MODEL`
 - `SIMILARITY_THRESHOLD`
 - `MEDIA_STORAGE_PATH`
