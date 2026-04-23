@@ -1,5 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor
-import html
 import json
 import logging
 import os
@@ -13,6 +11,7 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel, Field
 
 from .config import Settings
+from .diagram_renderer import render_scene_svg
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +30,44 @@ Rules:
 - Scene durations must total close to 30 seconds.
 - Each scene description must be suitable for a black and white pencil sketch educational worksheet.
 """
+
+INFOGRAPHIC_TOPIC_BRIEF = """
+Create a clean black-and-white pencil sketch educational infographic for the topic: "{topic}".
+
+Style:
+- hand-drawn pencil sketch
+- simple line art
+- minimal shading
+- kid-friendly
+- textbook/worksheet style
+- high clarity, not artistic
+
+Layout:
+- title at the top
+- 4 step-by-step panels arranged horizontally or in a grid
+- arrows connecting each step to show progression
+- one larger central diagram explaining the concept clearly
+- small summary or key idea at the bottom
+
+Content:
+- each panel shows a different stage of the process
+- include short, simple labels (1 sentence max per panel)
+- show motion using arrows (airflow, water flow, movement, forces)
+- highlight cause and effect clearly
+- emphasize important parts using thicker lines or repeated arrows
+
+Visual rules:
+- no colors (black and white only)
+- no clutter
+- no overlapping labels
+- clear spacing between sections
+- consistent drawing style for all objects
+- diagrams must be easy for kids to understand at a glance
+
+Goal:
+The final image should look like a clear educational worksheet that explains "{topic}" step-by-step using diagrams, arrows, and labels.
+Use consistent diagram style similar to school science textbooks and simple engineering diagrams.
+""".strip()
 
 
 class AnimationLesson(BaseModel):
@@ -195,6 +232,11 @@ def add_whiteboard_style(prompt: str) -> str:
     )
 
 
+def _build_infographic_brief(topic: str) -> str:
+    safe_topic = (topic or "").strip() or "this topic"
+    return INFOGRAPHIC_TOPIC_BRIEF.format(topic=safe_topic)
+
+
 def fallback_lesson_plan(question: str) -> dict:
     topic = question.strip() or "this idea"
     return {
@@ -241,11 +283,17 @@ def generate_lesson_plan(
         return lesson, "Add your OpenAI API key to generate a live lesson.", elapsed_ms, 0.0
 
     def _generate_with_model(model_name: str) -> str:
+        infographic_brief = _build_infographic_brief(question)
         return _openai_generate_text(
             model=model_name,
             api_key=client.api_key,
             system_prompt=SYSTEM_PROMPT,
-            user_prompt=f"Question: {question}{quality_notes}\n\n{schema_hint}",
+            user_prompt=(
+                f"Question: {question}"
+                f"{quality_notes}\n\n"
+                f"Infographic brief:\n{infographic_brief}\n\n"
+                f"{schema_hint}"
+            ),
         )
 
     try:
@@ -310,121 +358,19 @@ def generate_lesson_plan(
             0.0,
         )
 
-def _placeholder_svg_bytes() -> bytes:
-    svg = """
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" fill="#fffafd"/>
-  <rect x="96" y="96" width="832" height="832" rx="28" fill="none" stroke="#283044" stroke-width="10" stroke-dasharray="22 22"/>
-  <circle cx="300" cy="300" r="74" fill="none" stroke="#283044" stroke-width="12"/>
-  <path d="M430 300 H710" fill="none" stroke="#283044" stroke-width="12" stroke-linecap="round"/>
-  <path d="M660 250 L720 300 L660 350" fill="none" stroke="#283044" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M250 560 C350 470 470 660 580 560 C650 500 720 540 780 610" fill="none" stroke="#283044" stroke-width="12" stroke-linecap="round"/>
-  <text x="512" y="780" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" fill="#283044">Sketch coming soon</text>
-  <text x="512" y="840" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" fill="#5d4b9a">The answer is ready to read.</text>
-</svg>
-""".strip()
-    return svg.encode("utf-8")
-
-
-def _wrap_text(text: str, width: int = 38) -> List[str]:
-    words = (text or "").strip().split()
-    if not words:
-        return ["Let's learn together!"]
-    lines: List[str] = []
-    current: List[str] = []
-    current_len = 0
-    for word in words:
-        token_len = len(word) + (1 if current else 0)
-        if current and current_len + token_len > width:
-            lines.append(" ".join(current))
-            current = [word]
-            current_len = len(word)
-        else:
-            current.append(word)
-            current_len += token_len
-    if current:
-        lines.append(" ".join(current))
-    return lines[:4]
-
-
-def _pick_scene_badge(prompt: str) -> str:
-    text = (prompt or "").lower()
-    if any(word in text for word in ("rain", "cloud", "water", "evaporation")):
-        return "WATER CYCLE"
-    if any(word in text for word in ("plant", "leaf", "sunlight", "photosynthesis")):
-        return "PLANT POWER"
-    if any(word in text for word in ("rocket", "space", "planet", "moon")):
-        return "SPACE SCIENCE"
-    if any(word in text for word in ("fraction", "slice", "divide")):
-        return "FRACTION LAB"
-    if any(word in text for word in ("force", "push", "pull", "motion")):
-        return "MOTION LAB"
-    return "LEARNING LAB"
-
-
-def _scene_icon_svg(prompt: str) -> str:
-    text = (prompt or "").lower()
-    if any(word in text for word in ("rain", "cloud", "water", "evaporation")):
-        return """
-  <ellipse cx="280" cy="280" rx="85" ry="48" fill="none" stroke="#2b3b6a" stroke-width="10"/>
-  <ellipse cx="220" cy="286" rx="46" ry="32" fill="none" stroke="#2b3b6a" stroke-width="10"/>
-  <ellipse cx="340" cy="286" rx="46" ry="32" fill="none" stroke="#2b3b6a" stroke-width="10"/>
-  <path d="M240 360 L230 390 M280 360 L270 398 M320 360 L310 390" stroke="#2b3b6a" stroke-width="9" stroke-linecap="round"/>
-"""
-    if any(word in text for word in ("plant", "leaf", "sunlight", "photosynthesis")):
-        return """
-  <circle cx="280" cy="250" r="42" fill="none" stroke="#2b3b6a" stroke-width="10"/>
-  <line x1="280" y1="185" x2="280" y2="150" stroke="#2b3b6a" stroke-width="9"/>
-  <path d="M280 430 L280 290" stroke="#2b3b6a" stroke-width="10" />
-  <path d="M280 350 C330 320 355 320 390 355 C340 365 310 372 280 350" fill="none" stroke="#2b3b6a" stroke-width="9"/>
-  <path d="M280 385 C230 355 205 355 170 390 C220 398 250 405 280 385" fill="none" stroke="#2b3b6a" stroke-width="9"/>
-"""
-    if any(word in text for word in ("rocket", "space", "planet", "moon")):
-        return """
-  <path d="M250 380 L330 300 L390 360 L310 440 Z" fill="none" stroke="#2b3b6a" stroke-width="10"/>
-  <circle cx="333" cy="362" r="22" fill="none" stroke="#2b3b6a" stroke-width="8"/>
-  <path d="M390 360 L430 350 L410 390 Z" fill="none" stroke="#2b3b6a" stroke-width="8"/>
-  <path d="M250 380 L220 400 L250 410 Z" fill="none" stroke="#2b3b6a" stroke-width="8"/>
-"""
-    if any(word in text for word in ("fraction", "slice", "divide")):
-        return """
-  <circle cx="290" cy="320" r="115" fill="none" stroke="#2b3b6a" stroke-width="10"/>
-  <line x1="290" y1="205" x2="290" y2="435" stroke="#2b3b6a" stroke-width="8"/>
-  <line x1="175" y1="320" x2="405" y2="320" stroke="#2b3b6a" stroke-width="8"/>
-  <line x1="210" y1="240" x2="370" y2="400" stroke="#2b3b6a" stroke-width="8"/>
-"""
-    return """
-  <rect x="195" y="220" width="190" height="190" rx="22" fill="none" stroke="#2b3b6a" stroke-width="10"/>
-  <circle cx="250" cy="280" r="14" fill="none" stroke="#2b3b6a" stroke-width="7"/>
-  <circle cx="330" cy="280" r="14" fill="none" stroke="#2b3b6a" stroke-width="7"/>
-  <path d="M245 345 C272 370 308 370 335 345" fill="none" stroke="#2b3b6a" stroke-width="8" stroke-linecap="round"/>
-"""
-
-
-def _local_scene_svg_bytes(prompt: str, scene_number: int) -> bytes:
-    label = _pick_scene_badge(prompt)
-    lines = _wrap_text(prompt, width=42)
-    escaped_lines = [html.escape(line) for line in lines]
-    text_y = 640
-    text_svg = "\n".join(
-        f'  <text x="130" y="{text_y + idx * 54}" font-family="Arial, sans-serif" font-size="40" fill="#1f2f5d">{line}</text>'
-        for idx, line in enumerate(escaped_lines)
-    )
-    scene_title = html.escape(f"Scene {scene_number}")
-    badge = html.escape(label)
-    svg = f"""
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" fill="#f9fbff"/>
-  <rect x="58" y="58" width="908" height="908" rx="34" fill="none" stroke="#1f2f5d" stroke-width="10" stroke-dasharray="24 16"/>
-  <rect x="120" y="110" width="300" height="58" rx="24" fill="#ffe68b" stroke="#1f2f5d" stroke-width="5"/>
-  <text x="145" y="149" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#1f2f5d">{scene_title}</text>
-  <rect x="470" y="110" width="420" height="58" rx="24" fill="#d9e7ff" stroke="#1f2f5d" stroke-width="5"/>
-  <text x="490" y="149" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#1f2f5d">{badge}</text>
-  {_scene_icon_svg(prompt)}
-{text_svg}
-</svg>
-""".strip()
-    return svg.encode("utf-8")
+def _topic_hint_from_scene_prompts(scene_prompts: List[str]) -> str:
+    blob = " ".join(scene_prompts).lower()
+    if any(word in blob for word in ("rain", "cloud", "water", "evaporation", "precipitation", "condensation")):
+        return "water cycle rain cloud evaporation condensation precipitation"
+    if any(word in blob for word in ("plant", "leaf", "sunlight", "photosynthesis")):
+        return "plant sunlight photosynthesis leaf"
+    if any(word in blob for word in ("rocket", "space", "planet", "moon")):
+        return "space rocket planet moon"
+    if any(word in blob for word in ("fraction", "slice", "divide")):
+        return "fraction divide slice"
+    if any(word in blob for word in ("force", "push", "pull", "motion")):
+        return "force push pull motion"
+    return ""
 
 
 def _generate_local_tts_audio(narration_lines: List[str]) -> tuple[Optional[GeneratedMedia], str]:
@@ -468,10 +414,11 @@ def generate_scene_images(
     messages: List[str] = []
     estimated_cost = 0.0
 
+    topic_hint = _topic_hint_from_scene_prompts(scene_prompts)
     for index, scene_prompt in enumerate(scene_prompts, start=1):
         images.append(
             GeneratedMedia(
-                content=_local_scene_svg_bytes(scene_prompt, index),
+                content=render_scene_svg(index, scene_prompt, topic_hint=topic_hint),
                 ext="svg",
                 media_type="image",
             )
