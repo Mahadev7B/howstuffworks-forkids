@@ -43,7 +43,7 @@
         </div>
 
         <div class="whiteboard-frame">
-          <img id="scene-image" src="{{ scenes[0].image_url }}" alt="Whiteboard sketch for scene 1">
+          <img id="scene-image" class="is-visible" src="{{ scenes[0].image_url }}" alt="Whiteboard sketch for scene 1">
           <div class="draw-highlight" aria-hidden="true"></div>
         </div>
 
@@ -160,6 +160,27 @@
       const improvementStatus = document.getElementById("improvement-status");
       const improvementsBody = document.getElementById("improvements-body");
       const hasAudio = Boolean(audio);
+      const hasBrowserSpeech = typeof window !== "undefined" && "speechSynthesis" in window;
+      const canUseBrowserSpeech = !hasAudio && hasBrowserSpeech;
+      const fallbackSvgDataUri = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'>"
+        + "<rect width='1024' height='1024' fill='#f9fbff'/>"
+        + "<rect x='56' y='56' width='912' height='912' rx='32' fill='none' stroke='#1f2f5d' stroke-width='10' stroke-dasharray='22 16'/>"
+        + "<text x='512' y='460' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' fill='#1f2f5d'>Image loading fallback</text>"
+        + "<text x='512' y='520' text-anchor='middle' font-family='Arial,sans-serif' font-size='30' fill='#2b3b6a'>Captions still guide the lesson.</text>"
+        + "</svg>"
+      );
+
+      function ensureSceneImageVisible() {
+        image.classList.add("is-visible");
+      }
+
+      image.addEventListener("error", () => {
+        if (image.src !== fallbackSvgDataUri) {
+          image.src = fallbackSvgDataUri;
+        }
+        ensureSceneImageVisible();
+      });
 
       let currentScene = 0;
       let timerId = null;
@@ -167,6 +188,7 @@
       let replayRecorded = false;
       let timelineStarts = [];
       let totalTimelineSeconds = 0;
+      let activeUtterance = null;
 
       async function postForm(url, values) {
         const form = new URLSearchParams(values);
@@ -202,8 +224,32 @@
           dots.forEach((dot, dotIndex) => {
             dot.classList.toggle("is-active", dotIndex === currentScene);
           });
-          image.classList.add("is-visible");
+          ensureSceneImageVisible();
+          if (canUseBrowserSpeech && isPlaying) {
+            speakText(scene.narration);
+          }
         }, 180);
+      }
+
+      function stopSpeaking() {
+        if (!canUseBrowserSpeech) {
+          return;
+        }
+        activeUtterance = null;
+        window.speechSynthesis.cancel();
+      }
+
+      function speakText(text) {
+        if (!canUseBrowserSpeech) {
+          return;
+        }
+        stopSpeaking();
+        const utterance = new SpeechSynthesisUtterance(String(text || "").trim());
+        utterance.rate = 0.96;
+        utterance.pitch = 1.0;
+        utterance.lang = "en-US";
+        activeUtterance = utterance;
+        window.speechSynthesis.speak(utterance);
       }
 
       function buildTimelineStarts() {
@@ -254,6 +300,7 @@
         playButton.textContent = "Play again";
         endMessage.classList.add("is-visible");
         window.clearTimeout(timerId);
+        stopSpeaking();
 
         if (!replayRecorded) {
           replayRecorded = true;
@@ -306,6 +353,7 @@
         isPlaying = false;
         window.clearTimeout(timerId);
         playButton.textContent = "Resume lesson";
+        stopSpeaking();
         if (hasAudio) {
           audio.pause();
         }
@@ -420,6 +468,10 @@
           await finishLesson();
         });
       }
+
+      window.addEventListener("beforeunload", () => {
+        stopSpeaking();
+      });
     </script>
   </body>
 </html>

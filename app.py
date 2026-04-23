@@ -60,7 +60,11 @@ def animation():
     lesson_id = lesson_payload.get("lesson_id")
     audio = {
         "src": lesson_payload.get("audio_url"),
-        "message": None if lesson_payload.get("audio_url") else "Audio is unavailable for this lesson, so captions are guiding the lesson.",
+        "message": (
+            None
+            if lesson_payload.get("audio_url")
+            else "Server audio is unavailable for this lesson. Browser voice narration will be used when supported."
+        ),
     }
     improvements = []
     session = get_session()
@@ -226,7 +230,8 @@ def approved_context():
 
 @app.route("/media/<path:relative_path>", methods=["GET"])
 def media_file(relative_path: str):
-    media_root = Path(settings.media_storage_path).resolve()
+    runtime_settings = load_settings()
+    media_root = Path(runtime_settings.media_storage_path).resolve()
     absolute_path = (media_root / relative_path).resolve()
     if media_root not in absolute_path.parents and absolute_path != media_root:
         return jsonify({"ok": False, "error": "invalid path"}), 400
