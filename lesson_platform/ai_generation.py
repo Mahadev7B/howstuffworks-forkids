@@ -241,6 +241,14 @@ def generate_lesson_plan(
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return lesson, "Add your OpenRouter API key to generate a live lesson.", elapsed_ms, 0.0
 
+    def _generate_with_model(model_name: str) -> str:
+        return _openrouter_generate_text(
+            model=model_name,
+            api_key=client.api_key,
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=f"Question: {question}{quality_notes}\n\n{schema_hint}",
+        )
+
     try:
         quality_notes = ""
         if improvement_notes:
@@ -256,12 +264,7 @@ def generate_lesson_plan(
             "narration_lines must be exactly 5 strings. scene_descriptions must be exactly 5 strings. "
             "scene_durations must be exactly 5 integers."
         )
-        raw_text = _openrouter_generate_text(
-            model=settings.openrouter_model,
-            api_key=client.api_key,
-            system_prompt=SYSTEM_PROMPT,
-            user_prompt=f"Question: {question}{quality_notes}\n\n{schema_hint}",
-        )
+        raw_text = _generate_with_model(settings.openrouter_model)
         lesson = validate_lesson_plan(AnimationLesson.model_validate_json(raw_text))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         return lesson, "", elapsed_ms, 0.004
@@ -275,7 +278,29 @@ def generate_lesson_plan(
             elapsed_ms,
             0.0,
         )
-    except (RuntimeError, ValueError, AttributeError, TypeError):
+    except RuntimeError as exc:
+        if "HTTP Error 400" in str(exc) and settings.openrouter_model != "openrouter/free":
+            try:
+                logger.warning(
+                    "OpenRouter model '%s' rejected request; retrying with openrouter/free.",
+                    settings.openrouter_model,
+                )
+                raw_text = _generate_with_model("openrouter/free")
+                lesson = validate_lesson_plan(AnimationLesson.model_validate_json(raw_text))
+                elapsed_ms = int((time.perf_counter() - started) * 1000)
+                return lesson, "", elapsed_ms, 0.004
+            except (RuntimeError, ValueError, AttributeError, TypeError):
+                logger.exception("OpenRouter fallback model also failed; using fallback lesson.")
+        logger.exception("Lesson generation failed; using fallback lesson.")
+        lesson = fallback_lesson_plan(question)
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        return (
+            lesson,
+            "We could not generate a fresh lesson right now, so here is a simple example.",
+            elapsed_ms,
+            0.0,
+        )
+    except (ValueError, AttributeError, TypeError):
         logger.exception("Lesson generation failed; using fallback lesson.")
         lesson = fallback_lesson_plan(question)
         elapsed_ms = int((time.perf_counter() - started) * 1000)

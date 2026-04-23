@@ -27,6 +27,15 @@ def _as_bool(value: str, default: bool) -> bool:
     return default
 
 
+def _clean_env(value: str, default: str = "") -> str:
+    text = (value or "").strip()
+    if not text:
+        return default
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        text = text[1:-1].strip()
+    return text or default
+
+
 @dataclass(frozen=True)
 class Settings:
     openrouter_api_key: str
@@ -45,16 +54,16 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    openrouter_api_key = os.getenv("OPENROUTER_API", "").strip()
+    openrouter_api_key = _clean_env(os.getenv("OPENROUTER_API", ""))
     if not openrouter_api_key:
-        openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        openrouter_api_key = _clean_env(os.getenv("OPENROUTER_API_KEY", ""))
     return Settings(
         openrouter_api_key=openrouter_api_key,
-        openrouter_model=os.getenv("OPENROUTER_MODEL", "openrouter/free").strip(),
-        embedding_model=os.getenv("EMBEDDING_MODEL", "local-hash").strip(),
-        database_url=os.getenv("DATABASE_URL", "").strip(),
+        openrouter_model=_clean_env(os.getenv("OPENROUTER_MODEL", "openrouter/free"), "openrouter/free"),
+        embedding_model=_clean_env(os.getenv("EMBEDDING_MODEL", "local-hash"), "local-hash"),
+        database_url=_clean_env(os.getenv("DATABASE_URL", "")),
         similarity_threshold=_as_float(os.getenv("SIMILARITY_THRESHOLD"), 0.84),
-        media_storage_path=os.getenv("MEDIA_STORAGE_PATH", "media_store").strip(),
+        media_storage_path=_clean_env(os.getenv("MEDIA_STORAGE_PATH", "media_store"), "media_store"),
         lesson_timeout_seconds=_as_int(os.getenv("LESSON_TIMEOUT_SECONDS"), 180),
         image_parallelism=max(1, _as_int(os.getenv("IMAGE_PARALLELISM"), 3)),
         max_generated_images=max(1, _as_int(os.getenv("MAX_GENERATED_IMAGES"), 5)),
